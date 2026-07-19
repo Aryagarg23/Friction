@@ -26,3 +26,6 @@ npm-debug.log*
 
 # TypeScript cache
 *.tsbuildinfo
+
+# Generated figures (regenerate with prototype/friction_prototype.py)
+prototype/figures/
