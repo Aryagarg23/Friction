@@ -7,8 +7,7 @@ These are concept sketches, not measurements. Nothing here is a plotted
 result: no accuracies, no counts, no distributions, no invented metrics.
 Boxes and arrows describe mechanism and intent, matching the deck.
 
-Run with: MPLCONFIGDIR=/home/arya/projects/hackathons/.mplcache \
-  /home/arya/projects/hackathons/.venv/bin/python prototype/friction_prototype.py
+Run with: python -m pip install matplotlib && python prototype/friction_prototype.py
 """
 
 import os
@@ -18,8 +17,6 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.patches import FancyArrowPatch, Rectangle
-
-plt.style.use("/home/arya/projects/hackathons/.style/garg-paper.mplstyle")
 
 FIG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "figures")
 os.makedirs(FIG_DIR, exist_ok=True)

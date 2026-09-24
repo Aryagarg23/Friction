@@ -29,10 +29,11 @@ Run the fake OS itself with `npm install && npm run dev`.
 
 The real deliverable is the Figma Make export above — a design prototype, not working hardware or a working OS. `prototype/` has no data to show, so instead of fake charts it draws two explanatory diagrams: what the sensing-to-friction loop was meant to do, and the cognitive-load argument (intrinsic/extraneous/germane load) carried over from [Clay/Gyrus](#team)'s research. No invented metrics, no numeric axes — boxes, arrows, and labels only.
 
-Regenerate them locally:
+The diagrams need Python and Matplotlib. Regenerate them from the repository root:
 
-```
-MPLCONFIGDIR=/home/arya/projects/hackathons/.mplcache /home/arya/projects/hackathons/.venv/bin/python prototype/friction_prototype.py
+```sh
+python -m pip install matplotlib
+python prototype/friction_prototype.py
 ```
 
 ![Speculative diagram of the sensing-to-friction loop: SPEM eye tracking, RF posture mesh, and keystroke force feed a local SNN chip in the keyboard, which increases friction on fatigue or decreases it on focus drift, all grounded by a mechanical kill switch](https://vircgxpcwyvniemqmdyi.supabase.co/storage/v1/object/public/media/writing/Friction/intervention_loop.png)
