@@ -85,7 +85,7 @@ export function ControlPanel() {
   const { currentPersona, setPersona } = usePersona();
   const { startSession, sessionState, triggerStrike, activateMoss, activeScreenNumber, forceScreen, tasks: sessionTasks, completeTask } = useSession();
   const { interceptFatigue } = useFrictionSettings();
-  const { closeAllWindows, windows, focusedWindowId } = useWindowManager();
+  const { closeAllWindows } = useWindowManager();
   const [isExpanded, setIsExpanded] = useState(true);
   const [showSliders, setShowSliders] = useState(false);
   const [showTimeline, setShowTimeline] = useState(false);
@@ -237,21 +237,14 @@ export function ControlPanel() {
   };
 
   /**
-   * Return from stepping away: always show the moss, with words from what
-   * the user was actually doing (their current and next task, the app in
-   * front, and any words the story scripted for its own interruption).
+   * Return from stepping away: always show the moss. The moss card reads the
+   * current task, next task and front app itself; here we only add the words
+   * the story scripted for its own interruption, if any.
    */
   const handlePickBackUp = () => {
     setSteppedAway(false);
     const scripted = currentPersona?.simulationActions.find(a => a.action === "moss")?.mossKeywords ?? [];
-    const focusedTitle = windows.find(w => w.id === focusedWindowId)?.title;
-    const contextKeywords = [
-      currentTasks.active,
-      currentTasks.upcoming,
-      focusedTitle ? `In ${focusedTitle}` : "",
-      ...scripted,
-    ].filter(k => k && k !== "—" && !k.startsWith("Nothing"));
-    activateMoss(Array.from(new Set(contextKeywords)).slice(0, 8));
+    activateMoss(scripted);
     // Focus comes back partway: a short break has a small switching cost.
     if (preAwayBiometrics) {
       simulateGradualChange({
