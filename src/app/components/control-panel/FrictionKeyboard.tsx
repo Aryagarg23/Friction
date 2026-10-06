@@ -1,22 +1,20 @@
 /**
- * FRICTION KEYBOARD — Haptic/Visual Emulator
+ * FRICTION KEYBOARD — simulated hardware
  *
- * Renders a compact QWERTY keyboard mapped to real key events.
- * Visualises the three physical effects of the Friction keyboard concept:
- *   1. RGB underglow — color shifts with cognitive state
- *   2. Variable resistance — key press animation "weight" scales with fatigue
- *   3. Binaural beats — sub-perceptual audio hum that shifts with brain state
+ * A compact QWERTY board that mirrors real key events and shows what the
+ * physical Friction keyboard would do with the current sensor readings:
+ *   1. Key resistance — presses sink less and return more slowly as fatigue rises
+ *   2. Light mode — derived from focus and fatigue, published to KeyboardContext
+ *   3. Binaural tone — optional stereo audio that shifts with the readings
+ *   4. Temperature — the board warms up to +4 °C with fatigue
  *
- * LETHARGY SYSTEM: As fatigue builds, the entire keyboard becomes visually
- * sluggish — keys return slowly, ghost-presses flicker, labels blur, the
- * board sags and the underglow breathes more slowly.  Temperature rises.
+ * At high fatigue a random key briefly lights up, as a stand-in for misfires.
  */
 
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback, type CSSProperties } from "react";
 import { useBiometrics } from "../../context/BiometricContext";
 import { useFrictionSettings } from "../../context/FrictionSettingsContext";
 import { useKeyboard, type KeyboardResistance, type KeyboardRGBMode } from "../../context/KeyboardContext";
-import { Volume2, VolumeX, Keyboard, Thermometer } from "lucide-react";
 
 // ──────────────────────────────────────────────
 //  KEY LAYOUT
@@ -68,25 +66,25 @@ const ROWS: KeyDef[][] = [
     { label: "ctrl", code: "ControlLeft", width: 1.4 },
     { label: "⌥", code: "AltLeft", width: 1.2 },
     { label: "⌘", code: "MetaLeft", width: 1.4 },
-    { label: "                ", code: "Space", width: 4.7 },
+    { label: "", code: "Space", width: 4.7 },
     { label: "⌘", code: "MetaRight", width: 1.2 },
     { label: "⌥", code: "AltRight", width: 1.2 },
     { label: "fn", code: "Fn", width: 1.2 },
   ],
 ];
 
-// Flat list for ghost-key selection
+// Flat list for misfire-key selection
 const ALL_CODES = ROWS.flat().map(k => k.code);
 
 // ──────────────────────────────────────────────
-//  BINAURAL BEAT FREQUENCIES
+//  BINAURAL TONE PROFILES
 // ──────────────────────────────────────────────
 const BINAURAL_PROFILES: Record<string, { base: number; beat: number; label: string }> = {
-  gamma:  { base: 200, beat: 40,  label: "40 Hz γ — deep focus" },
-  beta:   { base: 200, beat: 18,  label: "18 Hz β — active thinking" },
-  alpha:  { base: 200, beat: 10,  label: "10 Hz α — relaxed alert" },
-  theta:  { base: 200, beat: 6,   label: "6 Hz θ — recovery" },
-  delta:  { base: 200, beat: 2,   label: "2 Hz δ — sleep induction" },
+  gamma: { base: 200, beat: 40, label: "deep focus" },
+  beta:  { base: 200, beat: 18, label: "active thinking" },
+  alpha: { base: 200, beat: 10, label: "relaxed" },
+  theta: { base: 200, beat: 6,  label: "recovery" },
+  delta: { base: 200, beat: 2,  label: "rest" },
 };
 
 // ──────────────────────────────────────────────
@@ -120,38 +118,20 @@ function deriveTemperature(fatigue: number): number {
   return Math.round(fatigue * 4 * 10) / 10;
 }
 
-function rgbColor(mode: KeyboardRGBMode, intensity: number): string {
-  switch (mode) {
-    case "amber-glow": return `rgba(255, 167, 38, ${0.15 + intensity * 0.45})`;
-    case "red-alert":  return `rgba(239, 68, 68, ${0.25 + intensity * 0.5})`;
-    case "pulsing":    return `rgba(255, 120, 30, ${0.12 + intensity * 0.35})`;
-    case "dim":        return `rgba(100, 116, 139, ${0.06 + intensity * 0.12})`;
-    default:           return `rgba(96, 165, 250, ${0.08 + intensity * 0.2})`;
-  }
-}
+const RESISTANCE_WORDS: Record<KeyboardResistance, string> = {
+  normal: "Normal",
+  spongy: "Soft",
+  heavy: "Heavy",
+  locked: "Locked",
+};
 
-function rgbGlow(mode: KeyboardRGBMode): string {
-  switch (mode) {
-    case "amber-glow": return "rgba(255, 167, 38, 0.6)";
-    case "red-alert":  return "rgba(239, 68, 68, 0.7)";
-    case "pulsing":    return "rgba(255, 120, 30, 0.5)";
-    case "dim":        return "rgba(100, 116, 139, 0.15)";
-    default:           return "rgba(96, 165, 250, 0.3)";
-  }
-}
-
-function resistanceLabel(r: KeyboardResistance): { text: string; color: string; pct: number } {
-  switch (r) {
-    case "locked": return { text: "LOCKED", color: "#ef4444", pct: 100 };
-    case "heavy":  return { text: "HEAVY",  color: "#f97316", pct: 75 };
-    case "spongy": return { text: "SPONGY", color: "#fbbf24", pct: 45 };
-    default:       return { text: "NORMAL", color: "#60a5fa", pct: 15 };
-  }
-}
-
-// ──────────────────────────────────────────────
-//  LETHARGY HELPERS
-// ──────────────────────────────────────────────
+const LIGHT_WORDS: Record<KeyboardRGBMode, string> = {
+  "amber-glow": "Deep focus",
+  pulsing: "Getting tired",
+  dim: "Low focus",
+  neutral: "Normal",
+  "red-alert": "Warning",
+};
 
 /** Maps fatigue 0-1 to a key-return transition duration in seconds */
 function keyReturnDuration(fatigue: number): number {
@@ -159,27 +139,7 @@ function keyReturnDuration(fatigue: number): number {
   return 0.08 + fatigue * fatigue * 1.12;
 }
 
-/** Maps fatigue 0-1 to a "sag" transform on the keyboard container (px) */
-function containerSag(fatigue: number): number {
-  return fatigue > 0.4 ? (fatigue - 0.4) * 6 : 0;
-}
-
-/** Maps fatigue 0-1 to label blur (px) */
-function labelBlur(fatigue: number): number {
-  if (fatigue < 0.5) return 0;
-  return (fatigue - 0.5) * 2.4; // up to 1.2px blur at max
-}
-
-/** Maps fatigue 0-1 to label opacity */
-function labelOpacity(fatigue: number): number {
-  return Math.max(0.3, 1 - fatigue * 0.55);
-}
-
-/** Breathing interval for pulsing mode slows with fatigue */
-function breatheSpeed(fatigue: number): number {
-  // 0.08 rad/tick at low fatigue, 0.02 at high
-  return Math.max(0.02, 0.08 - fatigue * 0.06);
-}
+const tabular: CSSProperties = { fontVariantNumeric: "tabular-nums" };
 
 // ──────────────────────────────────────────────
 //  COMPONENT
@@ -236,7 +196,7 @@ export function FrictionKeyboard() {
     };
   }, []);
 
-  // Clear recent key highlight — delay grows with fatigue (sluggish return)
+  // Clear recent key highlight — delay grows with fatigue (slow return)
   useEffect(() => {
     if (!recentKey) return;
     const delay = 200 + fatigue * 800; // 200ms → 1000ms
@@ -244,16 +204,14 @@ export function FrictionKeyboard() {
     return () => clearTimeout(t);
   }, [recentKey, fatigue]);
 
-  // ── Ghost key flickers at high fatigue ────────────────
+  // ── Misfire keys at high fatigue ──────────────────────
   useEffect(() => {
     if (fatigue < 0.6) {
       setGhostKeys(new Set());
       return;
     }
-    // LETHARGY-SYNCED: ghosts appear SLOWER at high fatigue (sluggish misfires)
-    // 3s at 0.6 fatigue → 5s at 1.0 fatigue
+    // Misfires come slower as fatigue rises: 3s at 0.6 → 5s at 1.0
     const interval = 3000 + (fatigue - 0.6) * 5000;
-    // Fewer ghost keys: just 1, occasionally 2 at extreme fatigue
     const count = fatigue > 0.9 ? 2 : 1;
 
     const tick = setInterval(() => {
@@ -262,7 +220,6 @@ export function FrictionKeyboard() {
         ghosts.add(ALL_CODES[Math.floor(Math.random() * ALL_CODES.length)]);
       }
       setGhostKeys(ghosts);
-      // Linger longer with fatigue — slow fade like a stuck key
       setTimeout(() => setGhostKeys(new Set()), 400 + fatigue * 1200);
     }, interval);
 
@@ -316,7 +273,7 @@ export function FrictionKeyboard() {
     oscRRef.current.frequency.setTargetAtTime(profile.base + profile.beat, audioCtxRef.current.currentTime, 0.5);
   }, [focus, fatigue, interceptFatigue]);
 
-  // Adjust volume — lower when fatigued (mimics sluggishness)
+  // Adjust volume — lower when fatigued
   useEffect(() => {
     if (!gainRef.current || !audioCtxRef.current) return;
     const vol = Math.max(0.08, 0.25 - fatigue * 0.12);
@@ -333,203 +290,65 @@ export function FrictionKeyboard() {
   // ── Derived display values ────────────────────────────
   const resistance = deriveResistance(fatigue, interceptFatigue);
   const rgb = deriveRGB(focus, fatigue, interceptFatigue);
-  const binProfile = deriveBinauralProfile(focus, fatigue, interceptFatigue);
-  const binInfo = BINAURAL_PROFILES[binProfile];
-  const rInfo = resistanceLabel(resistance);
+  const binInfo = BINAURAL_PROFILES[deriveBinauralProfile(focus, fatigue, interceptFatigue)];
   const temperature = deriveTemperature(fatigue);
-
-  // Pulsing intensity — breathing SLOWS with fatigue
-  const [pulsePhase, setPulsePhase] = useState(0);
-  useEffect(() => {
-    if (rgb !== "pulsing" && rgb !== "red-alert") return;
-    const speed = breatheSpeed(fatigue);
-    const anim = setInterval(() => setPulsePhase(p => (p + speed) % (Math.PI * 2)), 50);
-    return () => clearInterval(anim);
-  }, [rgb, fatigue]);
-  const pulseIntensity = (rgb === "pulsing" || rgb === "red-alert") ? 0.5 + Math.sin(pulsePhase) * 0.5 : 1;
-
-  // Lethargy-derived values
+  const locked = resistance === "locked";
   const returnDur = keyReturnDuration(fatigue);
-  const sag = containerSag(fatigue);
-  const blur = labelBlur(fatigue);
-  const opacity = labelOpacity(fatigue);
-
-  // Memoize the temperature edge glow
-  const tempGlow = useMemo(() => {
-    if (fatigue < 0.3) return "transparent";
-    const a = Math.min(0.35, (fatigue - 0.3) * 0.5);
-    return `rgba(239, 68, 68, ${a})`;
-  }, [fatigue]);
+  // Labels fade as fatigue rises, so the board looks tired without extra effects
+  const labelMix = Math.round(Math.max(30, 60 - fatigue * 30));
 
   return (
-    <div
-      className="flex flex-col gap-2"
-      style={{ fontFamily: "var(--friction-font-primary)" }}
-    >
-      {/* Section Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Keyboard size={12} style={{ color: rInfo.color }} />
-          <span
-            className="uppercase tracking-[0.2em]"
-            style={{ fontSize: "0.6rem", color: rInfo.color, fontWeight: 700 }}
-          >
-            Friction Keyboard
+    <div className="flex flex-col" style={{ gap: "1rem", fontFamily: "var(--pi-font)" }}>
+      {/* ── State ── */}
+      <dl className="grid" style={{ gridTemplateColumns: "auto 1fr", columnGap: "1rem", rowGap: "0.375rem", margin: 0, fontSize: "0.8125rem" }}>
+        <dt style={{ color: "var(--pi-ink-60)" }}>Keys</dt>
+        <dd style={{ margin: 0, color: locked ? "var(--pi-hot)" : "var(--pi-ink)", transition: "color var(--pi-ease-focus)" }}>
+          {RESISTANCE_WORDS[resistance]}
+        </dd>
+
+        <dt style={{ color: "var(--pi-ink-60)" }}>Light</dt>
+        <dd style={{ margin: 0 }}>{LIGHT_WORDS[rgb]}</dd>
+
+        <dt style={{ color: "var(--pi-ink-60)" }}>Heat</dt>
+        <dd style={{ margin: 0, ...tabular }}>+{temperature.toFixed(1)} °C</dd>
+
+        <dt style={{ color: "var(--pi-ink-60)" }}>Tone</dt>
+        <dd style={{ margin: 0 }} className="flex items-center justify-between gap-2">
+          <span style={{ color: audioOn ? "var(--pi-ink)" : "var(--pi-ink-60)" }}>
+            <span style={{ ...tabular, color: audioOn ? "var(--pi-blue)" : undefined }}>{binInfo.beat} Hz</span>
+            , {binInfo.label}
           </span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          {/* Temperature readout */}
-          {temperature > 0 && (
-            <div
-              className="flex items-center gap-1 px-1.5 py-0.5 rounded"
-              style={{
-                backgroundColor: `rgba(239,68,68,${Math.min(0.15, temperature * 0.04)})`,
-                transition: "background-color 0.8s ease",
-              }}
-            >
-              <Thermometer size={9} style={{ color: temperature > 2 ? "#ef4444" : "#f97316" }} />
-              <span
-                style={{
-                  fontSize: "0.5rem",
-                  color: temperature > 2 ? "#ef4444" : "#f97316",
-                  fontVariantNumeric: "tabular-nums",
-                }}
-              >
-                +{temperature.toFixed(1)}°C
-              </span>
-            </div>
-          )}
           <button
+            className="pi-btn"
+            aria-pressed={audioOn}
             onClick={toggleAudio}
-            className="p-1 rounded transition-colors"
-            style={{
-              backgroundColor: audioOn ? "rgba(96,165,250,0.15)" : "rgba(255,255,255,0.05)",
-              color: audioOn ? "#60a5fa" : "#64748b",
-            }}
-            title={audioOn ? "Mute binaural beats" : "Enable binaural beats (use headphones)"}
+            title="Binaural tone. Use headphones."
+            style={{ padding: "0.3rem 0.6rem", fontSize: "0.65rem" }}
           >
-            {audioOn ? <Volume2 size={11} /> : <VolumeX size={11} />}
+            {audioOn ? "Sound on" : "Sound off"}
           </button>
-        </div>
-      </div>
+        </dd>
+      </dl>
 
-      {/* Explainer */}
-      <p className="text-slate-500" style={{ fontSize: "0.55rem", lineHeight: 1.4 }}>
-        Synced to biometric panel. Drag fatigue slider to see lethargy build —
-        keys slow, ghost-presses flicker, labels blur, board sags.
-      </p>
-
-      {/* ── Status Bars ────────────────────────── */}
-      <div className="grid grid-cols-3 gap-1.5">
-        {/* Resistance */}
-        <div
-          className="p-1.5 rounded border text-center"
-          style={{ borderColor: "#2a3f5f", backgroundColor: "#0a0e14" }}
-        >
-          <div className="text-slate-500 uppercase tracking-[0.15em]" style={{ fontSize: "0.45rem" }}>
-            Resistance
-          </div>
-          <div className="mt-0.5" style={{ fontSize: "0.6rem", color: rInfo.color, fontWeight: 700 }}>
-            {rInfo.text}
-          </div>
-          <div className="h-1 rounded-full mt-1 overflow-hidden" style={{ backgroundColor: "#1e293b" }}>
-            <div
-              className="h-full rounded-full"
-              style={{
-                width: `${rInfo.pct}%`,
-                backgroundColor: rInfo.color,
-                transition: "width 0.6s ease, background-color 0.6s ease",
-              }}
-            />
-          </div>
-        </div>
-
-        {/* RGB Mode */}
-        <div
-          className="p-1.5 rounded border text-center"
-          style={{ borderColor: "#2a3f5f", backgroundColor: "#0a0e14" }}
-        >
-          <div className="text-slate-500 uppercase tracking-[0.15em]" style={{ fontSize: "0.45rem" }}>
-            RGB Mode
-          </div>
-          <div className="mt-0.5" style={{ fontSize: "0.6rem", color: rgbGlow(rgb).replace(/[\d.]+\)$/, "1)"), fontWeight: 700 }}>
-            {rgb.replace("-", " ").toUpperCase()}
-          </div>
-          <div
-            className="h-1 rounded-full mt-1"
-            style={{
-              backgroundColor: rgbColor(rgb, 0.8),
-              boxShadow: `0 0 6px ${rgbGlow(rgb)}`,
-              transition: "all 0.6s ease",
-            }}
-          />
-        </div>
-
-        {/* Binaural */}
-        <div
-          className="p-1.5 rounded border text-center"
-          style={{ borderColor: "#2a3f5f", backgroundColor: "#0a0e14" }}
-        >
-          <div className="text-slate-500 uppercase tracking-[0.15em]" style={{ fontSize: "0.45rem" }}>
-            Binaural
-          </div>
-          <div className="mt-0.5" style={{ fontSize: "0.6rem", color: audioOn ? "#a78bfa" : "#64748b", fontWeight: 700 }}>
-            {binInfo.beat} Hz
-          </div>
-          <div className="text-slate-500 mt-0.5" style={{ fontSize: "0.42rem" }}>
-            {binInfo.label.split("—")[1]?.trim() || binInfo.label}
-          </div>
-        </div>
-      </div>
-
-      {/* ── Keyboard Visual ────────────────────── */}
+      {/* ── Board ── */}
       <div
-        className="rounded-lg p-2 relative overflow-hidden"
+        className="relative"
         style={{
-          backgroundColor: "#0a0e14",
-          border: `1px solid ${rgbColor(rgb, 0.3)}`,
-          boxShadow: `
-            inset 0 0 20px ${rgbColor(rgb, 0.15 * pulseIntensity)},
-            0 0 12px ${rgbColor(rgb, 0.08 * pulseIntensity)},
-            inset 0 0 30px ${tempGlow}
-          `,
-          // LETHARGY: container sags and tilts slightly
-          transform: `translateY(${sag}px) perspective(400px) rotateX(${sag * 0.4}deg)`,
-          transition: "border-color 1s ease, box-shadow 1s ease, transform 1.5s cubic-bezier(0.4, 0, 0.2, 1)",
+          padding: "0.5rem",
+          border: "1px solid var(--pi-hairline)",
+          backgroundColor: "var(--pi-surface)",
         }}
       >
-        {/* Underglow effect */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background: `radial-gradient(ellipse at 50% 100%, ${rgbColor(rgb, 0.25 * pulseIntensity)}, transparent 70%)`,
-            transition: "all 1s ease",
-          }}
-        />
-
-        {/* Temperature heat haze at edges (high fatigue) */}
-        {fatigue > 0.4 && (
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background: `linear-gradient(180deg, transparent 60%, ${tempGlow} 100%)`,
-              opacity: pulseIntensity,
-              transition: "opacity 1.5s ease",
-            }}
-          />
-        )}
-
-        {/* Key rows */}
-        <div className="relative flex flex-col gap-[3px]">
+        <div className="flex flex-col" style={{ gap: "3px" }}>
           {ROWS.map((row, ri) => (
-            <div key={ri} className="flex gap-[3px] justify-center">
+            <div key={ri} className="flex" style={{ gap: "3px" }}>
               {row.map(key => {
                 const isPressed = pressedKeys.has(key.code);
                 const isRecent = recentKey === key.code;
-                const isGhost = ghostKeys.has(key.code);
+                const isGhost = ghostKeys.has(key.code) && !isPressed;
                 const w = key.width || 1;
 
-                // Resistance affects press animation depth
+                // Resistance sets how far a press sinks
                 const pressDepth = isPressed
                   ? resistance === "locked" ? 0
                     : resistance === "heavy" ? 1
@@ -537,7 +356,7 @@ export function FrictionKeyboard() {
                     : 3
                   : 0;
 
-                // LETHARGY: press transition gets slower
+                // Presses get slower with resistance; returns get slower with fatigue
                 const pressDur = isPressed
                   ? resistance === "heavy" ? "0.35s"
                     : resistance === "spongy" ? "0.18s"
@@ -545,62 +364,35 @@ export function FrictionKeyboard() {
                     : "0.05s"
                   : `${returnDur.toFixed(2)}s`;
 
-                // Ghost keys get a dim glow
-                const ghostGlow = isGhost && !isPressed;
-
-                // LETHARGY: glow/color transitions slow down with fatigue
-                const glowDur = (0.15 + fatigue * 1.35).toFixed(2); // 0.15s → 1.5s
+                const active = isPressed && !locked;
 
                 return (
                   <div
                     key={key.code}
-                    className="relative flex items-center justify-center rounded select-none"
+                    className="flex items-center justify-center select-none"
                     style={{
-                      width: `${w * 24}px`,
+                      flex: `${w} ${w} 0`,
+                      minWidth: 0,
                       height: "22px",
-                      fontSize: "0.5rem",
-                      fontFamily: "var(--friction-font-primary)",
-                      // LETHARGY: labels dim and blur
-                      color: isPressed
-                        ? "#fff"
-                        : isRecent
-                        ? rgbGlow(rgb).replace(/[\d.]+\)$/, "1)")
-                        : ghostGlow
-                        ? rgbColor(rgb, 0.6).replace(/[\d.]+\)$/, "0.7)")
-                        : `rgba(100, 116, 139, ${opacity})`,
-                      filter: blur > 0 && !isPressed && !isRecent ? `blur(${blur}px)` : "none",
-                      backgroundColor: isPressed
-                        ? rgbColor(rgb, 0.6 * pulseIntensity)
-                        : ghostGlow
-                        ? rgbColor(rgb, 0.15 * pulseIntensity)
-                        : "rgba(30, 41, 59, 0.5)",
-                      border: `1px solid ${
-                        isPressed
-                          ? rgbGlow(rgb)
-                          : isRecent
-                          ? rgbColor(rgb, 0.4)
-                          : ghostGlow
-                          ? rgbColor(rgb, 0.25)
-                          : "rgba(51, 65, 85, 0.4)"
-                      }`,
-                      boxShadow: isPressed
-                        ? `0 0 8px ${rgbGlow(rgb)}, inset 0 ${pressDepth}px 0 rgba(0,0,0,0.3)`
-                        : isRecent
-                        ? `0 0 4px ${rgbColor(rgb, 0.3)}`
-                        : ghostGlow
-                        ? `0 0 6px ${rgbColor(rgb, 0.2)}, inset 0 0 4px ${rgbColor(rgb, 0.1)}`
-                        : "none",
-                      // LETHARGY: key physically sinks and returns slowly
+                      fontSize: "0.55rem",
+                      border: `1px solid ${isRecent || isPressed ? "var(--pi-ink)" : "var(--pi-hairline)"}`,
+                      backgroundColor: active
+                        ? "var(--pi-ink)"
+                        : isGhost
+                        ? "var(--pi-ink-08)"
+                        : "var(--pi-ground)",
+                      color: active
+                        ? "var(--pi-ground)"
+                        : `color-mix(in srgb, var(--pi-ink) ${isRecent || isGhost ? 100 : labelMix}%, transparent)`,
                       transform: isPressed
-                        ? `translateY(${3 - pressDepth}px)`
+                        ? `translateY(${pressDepth}px)`
                         : isRecent
-                        ? `translateY(${Math.min(1, fatigue * 1.5)}px)` // sluggish return — doesn't fully come back immediately
+                        ? `translateY(${Math.min(1, fatigue * 1.5)}px)` // slow return: not fully back yet
                         : "translateY(0px)",
-                      transition: `transform ${pressDur} cubic-bezier(0.4, 0, 0.2, 1), color ${glowDur}s ease, background-color ${glowDur}s ease, border-color ${glowDur}s ease, box-shadow ${glowDur}s ease, filter 0.5s ease`,
-                      opacity: resistance === "locked" && isPressed ? 0.4 : 1,
+                      transition: `transform ${pressDur} cubic-bezier(0.32, 0.72, 0, 1), background-color var(--pi-ease-hover), color var(--pi-ease-hover), border-color var(--pi-ease-hover)`,
                     }}
                   >
-                    {key.label.trim() === "" ? "␣" : key.label}
+                    {key.label}
                   </div>
                 );
               })}
@@ -608,111 +400,19 @@ export function FrictionKeyboard() {
           ))}
         </div>
 
-        {/* Locked overlay */}
-        {resistance === "locked" && (
+        {locked && (
           <div
-            className="absolute inset-0 flex items-center justify-center rounded-lg"
+            className="absolute inset-0 flex items-center justify-center"
             style={{
-              backgroundColor: "rgba(0,0,0,0.6)",
-              backdropFilter: "blur(2px)",
+              backgroundColor: "color-mix(in srgb, var(--pi-ground) 88%, transparent)",
+              border: "1px solid var(--pi-hot)",
             }}
           >
-            <span
-              className="uppercase tracking-[0.3em] animate-pulse"
-              style={{ fontSize: "0.65rem", color: "#ef4444", fontWeight: 700 }}
-            >
-              Keys Locked — Cognitive Limit
+            <span style={{ fontSize: "0.8125rem", fontWeight: 500, color: "var(--pi-hot)" }}>
+              Locked: too tired to continue
             </span>
           </div>
         )}
-      </div>
-
-      {/* ── Fatigue Lethargy Meter ────────────── */}
-      <div
-        className="flex items-center gap-2 px-1"
-        style={{ opacity: fatigue > 0.1 ? 1 : 0.4, transition: "opacity 0.5s ease" }}
-      >
-        <div className="flex-1">
-          <div className="flex justify-between items-center mb-0.5">
-            <span className="text-slate-500 uppercase tracking-[0.15em]" style={{ fontSize: "0.45rem" }}>
-              Lethargy Index
-            </span>
-            <span
-              className="font-mono"
-              style={{
-                fontSize: "0.5rem",
-                color: fatigue > 0.75 ? "#ef4444" : fatigue > 0.5 ? "#f97316" : "#64748b",
-                fontVariantNumeric: "tabular-nums",
-              }}
-            >
-              {Math.round(fatigue * 100)}%
-            </span>
-          </div>
-          <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: "#1e293b" }}>
-            <div
-              className="h-full rounded-full"
-              style={{
-                width: `${fatigue * 100}%`,
-                background: fatigue > 0.75
-                  ? "linear-gradient(90deg, #f97316, #ef4444)"
-                  : fatigue > 0.5
-                  ? "linear-gradient(90deg, #fbbf24, #f97316)"
-                  : "linear-gradient(90deg, #60a5fa, #818cf8)",
-                transition: "width 0.8s cubic-bezier(0.4, 0, 0.2, 1), background 0.8s ease",
-                boxShadow: fatigue > 0.7 ? `0 0 6px rgba(239, 68, 68, ${fatigue * 0.5})` : "none",
-              }}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* ── Legend ────── */}
-      <div className="grid grid-cols-1 gap-1">
-        <LegendRow
-          color={rInfo.color}
-          label="Magnetic Resistance"
-          value={`Keys feel ${rInfo.text.toLowerCase()} — return: ${returnDur.toFixed(1)}s`}
-        />
-        <LegendRow
-          color={rgbGlow(rgb).replace(/[\d.]+\)$/, "0.9)")}
-          label="RGB Underglow"
-          value={rgb === "amber-glow" ? "Warm amber — deep flow detected" :
-                 rgb === "red-alert" ? "Red alert — cognitive limit reached" :
-                 rgb === "pulsing" ? "Pulsing — fatigue building" :
-                 rgb === "dim" ? "Dimmed — low focus / recovery" :
-                 "Neutral blue — baseline"}
-        />
-        <LegendRow
-          color={audioOn ? "#a78bfa" : "#475569"}
-          label="Binaural Audio"
-          value={audioOn ? `${binInfo.label} (headphones recommended)` : "Muted — click speaker to enable"}
-        />
-        {fatigue > 0.6 && (
-          <LegendRow
-            color="#ef4444"
-            label="Ghost Keys"
-            value={`Phantom misfires — sluggish noise at ${Math.round(fatigue * 100)}% fatigue`}
-          />
-        )}
-      </div>
-    </div>
-  );
-}
-
-function LegendRow({ color, label, value }: { color: string; label: string; value: string }) {
-  return (
-    <div className="flex items-start gap-2">
-      <div
-        className="w-1.5 h-1.5 rounded-full mt-[3px] shrink-0"
-        style={{ backgroundColor: color }}
-      />
-      <div>
-        <span className="text-slate-400 uppercase tracking-[0.1em]" style={{ fontSize: "0.48rem" }}>
-          {label}
-        </span>
-        <span className="text-slate-500 ml-1" style={{ fontSize: "0.48rem" }}>
-          — {value}
-        </span>
       </div>
     </div>
   );

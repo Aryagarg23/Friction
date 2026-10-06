@@ -1,24 +1,20 @@
 /**
  * CONTROL PANEL
- * 
- * Left sidebar for demo control. Shows persona selector, interactive
- * draggable timeline, biometric overrides, and context-switch simulation.
- * Keyboard state removed — lives only in the physical device concept.
+ *
+ * Left column the presenter uses to drive the demo: simulated sensor
+ * readings, presets, persona stories with a scrubbable timeline, the
+ * screen switcher and the simulated keyboard. The end user never sees it.
  */
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, type ReactNode, type CSSProperties } from "react";
 import { useBiometrics } from "../../context/BiometricContext";
 import { usePersona } from "../../context/PersonaContext";
 import { useSession } from "../../context/SessionContext";
 import { useFrictionSettings } from "../../context/FrictionSettingsContext";
 import { useWindowManager } from "../../context/WindowManagerContext";
 import { usePersonaSimulation } from "../../hooks/usePersonaSimulation";
-import { ALL_PERSONAS, type BiometricPattern } from "../../data/personas";
+import { ALL_PERSONAS, type BiometricPattern, type PersonaProfile } from "../../data/personas";
 import { FrictionKeyboard } from "./FrictionKeyboard";
-import {
-  User, Sliders, ArrowLeft, Clock, Brain, Zap, Play, Pause,
-  SkipForward, SkipBack, LogOut, LogIn, Activity, Check,
-} from "lucide-react";
 
 /** Interpolate biometrics between two pattern points */
 function interpolateBiometrics(
@@ -44,9 +40,39 @@ function interpolateBiometrics(
   return pattern[pattern.length - 1];
 }
 
+type StorySubState = PersonaProfile["storyBeats"][number]["subState"];
+
+/** Plain words for the story beat states stored in the persona data. */
+const SUB_STATE_WORDS: Record<StorySubState, string> = {
+  invisible: "Hidden",
+  taper: "Winding down",
+  recovery: "Recovering",
+  return: "Coming back",
+  intercept: "Break",
+  idle: "Idle",
+};
+
+const SCREENS: { num: 1 | 2 | 3; label: string }[] = [
+  { num: 1, label: "Plan" },
+  { num: 2, label: "Session" },
+  { num: 3, label: "Recap" },
+];
+
+const PRESETS: { label: string; focus: number; fatigue: number }[] = [
+  { label: "Focused", focus: 0.95, fatigue: 0.2 },
+  { label: "Distracted", focus: 0.25, fatigue: 0.15 },
+  { label: "Tiring", focus: 0.6, fatigue: 0.65 },
+  { label: "Burned out", focus: 0.15, fatigue: 0.98 },
+];
+
+const smallBtn: CSSProperties = { padding: "0.35rem 0.65rem", fontSize: "0.65rem" };
+const bodyText: CSSProperties = { fontSize: "0.8125rem", lineHeight: 1.5, color: "var(--pi-ink)" };
+const mutedText: CSSProperties = { fontSize: "0.75rem", lineHeight: 1.5, color: "var(--pi-ink-60)" };
+const tabular: CSSProperties = { fontVariantNumeric: "tabular-nums" };
+
 export function ControlPanel() {
   const { current: biometrics, setCurrent, simulateGradualChange, setBiometrics } = useBiometrics();
-  const { currentPersona, setPersona, currentStoryBeatIndex } = usePersona();
+  const { currentPersona, setPersona } = usePersona();
   const { startSession, sessionState, triggerStrike, activateMoss, activeScreenNumber, forceScreen } = useSession();
   const { interceptFatigue } = useFrictionSettings();
   const { closeAllWindows } = useWindowManager();
@@ -200,7 +226,7 @@ export function ControlPanel() {
     const isLongAbsence = absenceDuration >= LONG_ABSENCE_THRESHOLD_MS;
 
     if (!isLongAbsence) {
-      // ── SHORT ABSENCE: Neural Residue (swipe-to-clear) pathway ──
+      // ── SHORT ABSENCE: residue (swipe-to-clear) pathway ──
       // Activate residue overlay — suppresses RefocusPopup
       if (currentPersona) {
         const contextKeywords = [
@@ -258,7 +284,7 @@ export function ControlPanel() {
       accum += currentPersona.tasks[i].estimatedMinutes;
       if (elapsed < accum) {
         activeTask = currentPersona.tasks[i].title;
-        upcomingTask = currentPersona.tasks[i + 1]?.title || "Session complete";
+        upcomingTask = currentPersona.tasks[i + 1]?.title || "Nothing. Last task.";
         break;
       }
     }
@@ -267,679 +293,448 @@ export function ControlPanel() {
 
   const currentTasks = getCurrentTasks();
 
-  // Derive current Screen 2 sub-state from biometrics
-  const getScreen2SubState = (): { label: string; code: string; color: string } => {
+  // What the Session screen is showing, derived from the sensor readings
+  const getSessionView = (): string => {
     const focus = biometrics.focus_percent;
     const fatigue = biometrics.fatigue_percent;
-    if (fatigue > interceptFatigue) return { label: "Hard Intercept", code: "2.6", color: "#ef4444" };
-    if (focus > 0.80) return { label: "Flow Pill", code: "2.1", color: "#4ade80" };
-    if (focus > 0.50) return { label: "Peek Card", code: "2.3", color: "#60a5fa" };
-    if (focus > 0.30) return { label: "Peek + Breathing", code: "2.4", color: "#f59e0b" };
-    return { label: "Refocus Popup", code: "2.5", color: "#a78bfa" };
+    if (fatigue > interceptFatigue) return "Break screen";
+    if (focus > 0.80) return "Focus pill";
+    if (focus > 0.50) return "Peek card";
+    if (focus > 0.30) return "Peek card with breathing guide";
+    return "Refocus prompt";
   };
 
-  const screen2Sub = getScreen2SubState();
+  const screenNote =
+    activeScreenNumber === 1
+      ? "Hover the right edge of the desktop to open the drawer."
+      : activeScreenNumber === 2
+      ? `The user sees: ${getSessionView()}.`
+      : "Hover the right edge of the desktop to see the recap.";
 
-  const SCREEN_DEFS: { num: 1 | 2 | 3; label: string; subtitle: string; color: string }[] = [
-    { num: 1, label: "Terminal", subtitle: "Moon Pool / Task Setup", color: "#ffa726" },
-    { num: 2, label: "Scaffolding", subtitle: "Active Session", color: "#60a5fa" },
-    { num: 3, label: "Mirror", subtitle: "Reflection", color: "#a78bfa" },
-  ];
+  const overThreshold = biometrics.fatigue_percent > interceptFatigue;
+
+  // ── Collapsed ──
+  if (!isExpanded) {
+    return (
+      <div
+        className="h-screen flex flex-col items-center shrink-0"
+        style={{
+          width: "64px",
+          backgroundColor: "var(--pi-ground)",
+          color: "var(--pi-ink)",
+          fontFamily: "var(--pi-font)",
+          borderRight: "1px solid var(--pi-hairline)",
+          paddingTop: "1.25rem",
+          transition: "width var(--pi-ease-focus)",
+        }}
+      >
+        <button className="pi-btn" style={smallBtn} onClick={() => setIsExpanded(true)}>
+          Show
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div
-      className="h-screen flex flex-col"
+      className="h-screen flex flex-col shrink-0"
       style={{
-        width: isExpanded ? "380px" : "64px",
-        backgroundColor: "#0c0e14",
-        fontFamily: "var(--friction-font-primary)",
-        transition: "width 0.3s ease",
-        borderRight: "1px solid rgba(255, 255, 255, 0.06)",
+        width: "380px",
+        backgroundColor: "var(--pi-ground)",
+        color: "var(--pi-ink)",
+        fontFamily: "var(--pi-font)",
+        borderRight: "1px solid var(--pi-hairline)",
+        transition: "width var(--pi-ease-focus)",
       }}
     >
       {/* Header */}
-      {isExpanded && (
-        <div className="shrink-0 px-5 pt-5 pb-3" style={{ backgroundColor: "#0c0e14" }}>
-          <div className="flex items-center gap-2 mb-1.5">
-            <div
-              className="w-1.5 h-1.5 rounded-full"
-              style={{ backgroundColor: "#475569" }}
-            />
-            <span className="text-slate-500 uppercase tracking-[0.25em]" style={{ fontSize: "0.55rem" }}>
-              Simulation Controls
-            </span>
-          </div>
-          <h2 className="text-slate-200 uppercase tracking-[0.1em]" style={{ fontSize: "0.8rem" }}>
-            Neural Interface
+      <header className="shrink-0 flex items-start justify-between gap-4" style={{ padding: "1.5rem 1.25rem 1.25rem" }}>
+        <div>
+          <h2 style={{ margin: 0, fontSize: "1rem", fontWeight: 500, letterSpacing: "0.01em" }}>
+            Demo controls
           </h2>
-          <p className="text-slate-600 mt-1" style={{ fontSize: "0.52rem" }}>
-            Configure biometric state &middot; Not visible to end user
+          <p style={{ ...mutedText, margin: "0.375rem 0 0" }}>
+            Simulated sensor readings. The user never sees this panel.
           </p>
         </div>
-      )}
+        <button className="pi-btn shrink-0" style={smallBtn} onClick={() => setIsExpanded(false)}>
+          Hide
+        </button>
+      </header>
 
-      {/* ══════ SCREEN STATE HUD ══════ */}
-      {isExpanded && (
-        <div
-          className="shrink-0 px-4 py-3"
-          style={{
-            backgroundColor: "#080a10",
-            borderTop: "1px solid rgba(255, 167, 38, 0.08)",
-            borderBottom: "1px solid rgba(255, 167, 38, 0.08)",
-          }}
-        >
-          <div className="flex items-center gap-1.5 mb-2.5">
-            <svg width="8" height="8" viewBox="0 0 12 12" fill="none">
-              <path d="M6 0.5L11 6L6 11.5L1 6L6 0.5Z" fill="#ff8c00" />
-            </svg>
-            <span
-              className="uppercase tracking-[0.2em]"
-              style={{ fontSize: "0.5rem", color: "rgba(255, 167, 38, 0.5)" }}
-            >
-              Active Screen
-            </span>
+      <div className="flex-1 overflow-y-auto min-h-0">
+        {/* Screen */}
+        <Section title="Screen">
+          <div className="grid grid-cols-3" style={{ gap: "0.5rem" }}>
+            {SCREENS.map(s => (
+              <button
+                key={s.num}
+                className="pi-btn"
+                aria-pressed={activeScreenNumber === s.num}
+                onClick={() => forceScreen(s.num)}
+                style={{ padding: "0.6rem 0.5rem", textAlign: "left" }}
+              >
+                <span style={{ ...tabular, opacity: 0.6, marginRight: "0.4rem" }}>{s.num}</span>
+                {s.label}
+              </button>
+            ))}
           </div>
+          <p style={{ ...mutedText, margin: "0.75rem 0 0" }}>{screenNote}</p>
+        </Section>
 
-          {/* Screen selector buttons */}
-          <div className="flex gap-1.5 mb-2">
-            {SCREEN_DEFS.map(s => {
-              const isActive = activeScreenNumber === s.num;
-              return (
-                <button
-                  key={s.num}
-                  onClick={() => forceScreen(s.num)}
-                  className="flex-1 py-2 px-1.5 rounded cursor-pointer transition-all"
-                  style={{
-                    backgroundColor: isActive ? `${s.color}15` : "rgba(255,255,255,0.02)",
-                    border: `1.5px solid ${isActive ? s.color : "rgba(255,255,255,0.06)"}`,
-                    boxShadow: isActive ? `0 0 12px ${s.color}20` : "none",
-                  }}
-                >
-                  <div
-                    className="text-center tabular-nums"
-                    style={{
-                      fontSize: "0.85rem",
-                      color: isActive ? s.color : "#475569",
-                      transition: "color 0.2s",
-                    }}
-                  >
-                    {s.num}
-                  </div>
-                  <div
-                    className="text-center uppercase tracking-[0.1em]"
-                    style={{
-                      fontSize: "0.45rem",
-                      color: isActive ? s.color : "#374151",
-                      marginTop: "2px",
-                      transition: "color 0.2s",
-                    }}
-                  >
-                    {s.label}
-                  </div>
+        {showTimeline && currentPersona ? (
+          <>
+            {/* Story */}
+            <Section
+              title="Story"
+              action={
+                <button className="pi-btn" style={smallBtn} onClick={handleBackToControls}>
+                  Back
                 </button>
-              );
-            })}
-          </div>
-
-          {/* Current sub-state detail (only meaningful for Screen 2) */}
-          {activeScreenNumber === 2 && (
-            <div
-              className="flex items-center gap-2 px-2.5 py-1.5 rounded"
-              style={{
-                backgroundColor: `${screen2Sub.color}08`,
-                border: `1px solid ${screen2Sub.color}20`,
-              }}
+              }
             >
-              <div
-                className="w-1.5 h-1.5 rounded-full shrink-0"
-                style={{
-                  backgroundColor: screen2Sub.color,
-                  boxShadow: `0 0 6px ${screen2Sub.color}60`,
-                }}
-              />
-              <span
-                className="font-mono"
-                style={{ fontSize: "0.55rem", color: screen2Sub.color }}
-              >
-                {screen2Sub.code}
-              </span>
-              <span
-                className="uppercase tracking-[0.1em]"
-                style={{ fontSize: "0.5rem", color: `${screen2Sub.color}cc` }}
-              >
-                {screen2Sub.label}
-              </span>
-            </div>
-          )}
-          {activeScreenNumber === 1 && (
-            <div
-              className="flex items-center gap-2 px-2.5 py-1.5 rounded"
-              style={{
-                backgroundColor: "rgba(255, 167, 38, 0.04)",
-                border: "1px solid rgba(255, 167, 38, 0.1)",
-              }}
-            >
-              <div
-                className="w-1.5 h-1.5 rounded-full shrink-0"
-                style={{ backgroundColor: "#ffa726", boxShadow: "0 0 6px rgba(255,167,38,0.4)" }}
-              />
-              <span className="uppercase tracking-[0.1em]" style={{ fontSize: "0.5rem", color: "#ffa726" }}>
-                Idle &mdash; Hover right edge of OS to see drawer
-              </span>
-            </div>
-          )}
-          {activeScreenNumber === 3 && (
-            <div
-              className="flex items-center gap-2 px-2.5 py-1.5 rounded"
-              style={{
-                backgroundColor: "rgba(167, 139, 250, 0.04)",
-                border: "1px solid rgba(167, 139, 250, 0.1)",
-              }}
-            >
-              <div
-                className="w-1.5 h-1.5 rounded-full shrink-0"
-                style={{ backgroundColor: "#a78bfa", boxShadow: "0 0 6px rgba(167,139,250,0.4)" }}
-              />
-              <span className="uppercase tracking-[0.1em]" style={{ fontSize: "0.5rem", color: "#a78bfa" }}>
-                Post-Session &mdash; Hover right edge for reflection
-              </span>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Mode label */}
-      <div
-        className="flex items-center justify-between px-5 py-2.5 shrink-0"
-        style={{ backgroundColor: "#0a0c12", borderTop: "1px solid rgba(255,255,255,0.04)", borderBottom: "1px solid rgba(255,255,255,0.04)" }}
-      >
-        {isExpanded && (
-          <div>
-            <h3 className="text-slate-400 uppercase tracking-[0.2em]" style={{ fontSize: "0.6rem" }}>
-              {showTimeline ? "Persona Timeline" : "Biometric Override"}
-            </h3>
-            <p className="text-slate-600" style={{ fontSize: "0.5rem", marginTop: "2px" }}>
-              {showTimeline ? currentPersona?.name : "Drag sliders to simulate state"}
-            </p>
-          </div>
-        )}
-        {showTimeline && isExpanded ? (
-          <button
-            onClick={handleBackToControls}
-            className="p-2 text-slate-500 hover:text-slate-300 transition-colors rounded"
-            style={{ backgroundColor: "rgba(255,255,255,0.03)" }}
-          >
-            <ArrowLeft size={16} />
-          </button>
-        ) : (
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="p-2 text-slate-500 hover:text-slate-300 transition-colors rounded"
-            style={{ backgroundColor: "rgba(255,255,255,0.03)" }}
-          >
-            <Sliders size={16} />
-          </button>
-        )}
-      </div>
-
-      {/* ====== TIMELINE VIEW ====== */}
-      {isExpanded && showTimeline && currentPersona && (
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Persona Info Bar */}
-          <div
-            className="px-5 py-3 border-b shrink-0"
-            style={{ borderColor: "#2a3f5f", backgroundColor: "#0f1419" }}
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <User size={14} style={{ color: currentPersona.accentColor }} />
-              <span className="font-bold uppercase tracking-[0.1em]" style={{ color: currentPersona.accentColor, fontSize: "0.75rem" }}>
+              <div style={{ ...bodyText, fontWeight: 500 }}>
                 {currentPersona.name}
-              </span>
-              <span className="text-slate-500" style={{ fontSize: "0.6rem" }}>
-                {currentPersona.archetype}
-              </span>
-            </div>
-            <p className="text-slate-400" style={{ fontSize: "0.6rem", lineHeight: "1.4" }}>
-              {currentPersona.description}
-            </p>
-          </div>
-
-          {/* Transport Controls */}
-          <div
-            className="flex items-center justify-between px-5 py-2.5 border-b shrink-0"
-            style={{ borderColor: "#2a3f5f", backgroundColor: "#111827" }}
-          >
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => { setTimelineMinutes(0); driveFromTimeline(0); }}
-                className="p-1.5 text-slate-400 hover:text-blue-400 transition-colors rounded"
-                style={{ backgroundColor: "rgba(255,255,255,0.05)" }}
-              >
-                <SkipBack size={12} />
-              </button>
-              <button
-                onClick={toggleAutoPlay}
-                className="p-1.5 rounded transition-colors"
-                style={{
-                  backgroundColor: isAutoPlaying ? "rgba(96,165,250,0.2)" : "rgba(255,255,255,0.05)",
-                  color: isAutoPlaying ? "#60a5fa" : "#94a3b8",
-                }}
-              >
-                {isAutoPlaying ? <Pause size={12} /> : <Play size={12} />}
-              </button>
-              <button
-                onClick={() => { jumpToBeat(Math.min(activeBeatIdx + 1, currentPersona.storyBeats.length - 1)); }}
-                className="p-1.5 text-slate-400 hover:text-blue-400 transition-colors rounded"
-                style={{ backgroundColor: "rgba(255,255,255,0.05)" }}
-              >
-                <SkipForward size={12} />
-              </button>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Clock size={11} className="text-slate-500" />
-              <span className="font-mono text-slate-300" style={{ fontSize: "0.7rem" }}>
-                {Math.round(timelineMinutes)}m / {currentPersona.sessionDurationMinutes}m
-              </span>
-            </div>
-          </div>
-
-          {/* Current Activity Status */}
-          <div
-            className="px-5 py-2.5 border-b shrink-0"
-            style={{ borderColor: "#2a3f5f", backgroundColor: steppedAway ? "rgba(239, 68, 68, 0.08)" : "#0d1117" }}
-          >
-            {steppedAway ? (
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                <span className="text-red-400 uppercase tracking-[0.15em] font-bold" style={{ fontSize: "0.6rem" }}>
-                  Context Lost — Stepped Away
+                <span style={{ fontWeight: 400, color: "var(--pi-ink-60)", marginLeft: "0.5rem" }}>
+                  {currentPersona.archetype}
                 </span>
               </div>
-            ) : (
-              <>
-                <div className="flex items-center gap-2 mb-1">
-                  <Activity size={10} style={{ color: currentPersona.accentColor }} />
-                  <span className="uppercase tracking-[0.15em] font-bold" style={{ fontSize: "0.6rem", color: currentPersona.accentColor }}>
-                    {activeBeat?.subState || "idle"}
-                  </span>
-                </div>
-                <p className="text-slate-300 truncate" style={{ fontSize: "0.65rem" }}>
-                  🎯 {currentTasks.active}
-                </p>
-                <p className="text-slate-500 truncate" style={{ fontSize: "0.6rem" }}>
-                  Next: {currentTasks.upcoming}
-                </p>
-              </>
-            )}
-          </div>
+              <p style={{ ...mutedText, margin: "0.375rem 0 0" }}>{currentPersona.description}</p>
 
-          {/* Context Switch Button (Stepped Away / Pick Back Up) */}
-          <div
-            className="px-5 py-2 border-b shrink-0"
-            style={{ borderColor: "#2a3f5f" }}
-          >
-            {!steppedAway ? (
-              <div className="flex gap-2">
-                <button
-                  onClick={handleStepAway}
-                  className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border-2 transition-all hover:border-red-400/50"
-                  style={{
-                    fontSize: "0.65rem",
-                    borderColor: "#2a3f5f",
-                    backgroundColor: "#0f1419",
-                    color: "#94a3b8",
-                  }}
-                >
-                  <LogOut size={12} />
-                  <span className="uppercase tracking-[0.15em] font-bold">Stepped Away</span>
-                </button>
-                {/* Tactile Strike Demo Button */}
-                <button
-                  onClick={() => triggerStrike(currentTasks.active, currentTasks.upcoming)}
-                  className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border-2 transition-all hover:border-amber-400/50"
-                  title="Simulate Tactile Strike (task completion)"
-                  style={{
-                    fontSize: "0.6rem",
-                    borderColor: "#2a3f5f",
-                    backgroundColor: "#0f1419",
-                    color: "#f59e0b",
-                  }}
-                >
-                  <Check size={12} />
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={handlePickBackUp}
-                className="w-full flex items-center justify-center gap-2 py-2 rounded-lg border-2 transition-all animate-pulse"
-                style={{
-                  fontSize: "0.65rem",
-                  borderColor: currentPersona.accentColor,
-                  backgroundColor: `${currentPersona.accentColor}15`,
-                  color: currentPersona.accentColor,
-                }}
-              >
-                <LogIn size={12} />
-                <span className="uppercase tracking-[0.15em] font-bold">Pick It Back Up</span>
-              </button>
-            )}
-          </div>
-
-          {/* DRAGGABLE TIMELINE + BEAT DETAILS */}
-          <div className="flex-1 flex overflow-hidden min-h-0">
-            {/* Timeline Track (draggable scrubber) */}
-            <div
-              className="flex flex-col items-center py-4 shrink-0"
-              style={{ width: "52px", backgroundColor: "#0d1117", borderRight: "1px solid #2a3f5f" }}
-            >
-              <div
-                ref={trackRef}
-                className="relative flex-1 cursor-pointer"
-                style={{ width: "4px", backgroundColor: "#1e293b", borderRadius: "2px" }}
-                onMouseDown={handleTrackMouseDown}
-              >
-                {/* Beat markers */}
-                {currentPersona.storyBeats.map((beat, i) => {
-                  const pct = (beat.time / currentPersona.sessionDurationMinutes) * 100;
-                  const isActive = i === activeBeatIdx;
-                  return (
-                    <button
-                      key={i}
-                      className="absolute -left-[7px] w-[18px] h-[18px] rounded-full border-2 flex items-center justify-center cursor-pointer transition-all z-10"
-                      style={{
-                        top: `${pct}%`,
-                        transform: "translateY(-50%)",
-                        backgroundColor: isActive ? currentPersona.accentColor : "#0f1419",
-                        borderColor: isActive ? currentPersona.accentColor : "#2a3f5f",
-                      }}
-                      onClick={(e) => { e.stopPropagation(); jumpToBeat(i); }}
-                    >
-                      <span style={{ fontSize: "0.5rem", color: isActive ? "#000" : "#64748b" }}>
-                        {i + 1}
-                      </span>
-                    </button>
-                  );
-                })}
-
-                {/* Scrubber position indicator */}
-                <div
-                  className="absolute -left-[5px] w-[14px] h-[14px] rounded-sm z-20 pointer-events-none"
-                  style={{
-                    top: `${(timelineMinutes / currentPersona.sessionDurationMinutes) * 100}%`,
-                    transform: "translateY(-50%) rotate(45deg)",
-                    backgroundColor: steppedAway ? "#ef4444" : "#60a5fa",
-                    boxShadow: `0 0 8px ${steppedAway ? "rgba(239,68,68,0.6)" : "rgba(96,165,250,0.6)"}`,
-                    transition: isDraggingTimeline ? "none" : "top 0.3s ease",
-                  }}
-                />
-
-                {/* Filled track */}
-                <div
-                  className="absolute top-0 left-0 right-0 rounded"
-                  style={{
-                    height: `${(timelineMinutes / currentPersona.sessionDurationMinutes) * 100}%`,
-                    backgroundColor: steppedAway ? "rgba(239,68,68,0.3)" : "rgba(96,165,250,0.3)",
-                    transition: isDraggingTimeline ? "none" : "height 0.3s ease",
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* Beat Details (scrollable) */}
-            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-              {currentPersona.storyBeats.map((beat, index) => {
-                const isActive = index === activeBeatIdx;
-                const isPast = beat.time < timelineMinutes && index < activeBeatIdx;
-                return (
+              {/* Transport */}
+              <div className="flex items-center justify-between" style={{ marginTop: "1rem" }}>
+                <div className="flex" style={{ gap: "0.375rem" }}>
                   <button
-                    key={index}
-                    onClick={() => jumpToBeat(index)}
-                    className="w-full text-left p-3 rounded-lg border transition-all cursor-pointer"
-                    style={{
-                      backgroundColor: isActive ? `${currentPersona.accentColor}10` : "#0f1419",
-                      borderColor: isActive ? currentPersona.accentColor : isPast ? "#1e293b" : "#2a3f5f",
-                      opacity: isPast ? 0.5 : 1,
-                    }}
+                    className="pi-btn"
+                    style={smallBtn}
+                    onClick={() => { setTimelineMinutes(0); driveFromTimeline(0); }}
                   >
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <span className="font-mono text-slate-400" style={{ fontSize: "0.6rem" }}>
-                        {beat.time}m
-                      </span>
-                      <span
-                        className="px-1.5 py-0.5 rounded uppercase font-bold"
-                        style={{
-                          fontSize: "0.55rem",
-                          backgroundColor: isActive ? `${currentPersona.accentColor}20` : "rgba(255,255,255,0.05)",
-                          color: isActive ? currentPersona.accentColor : "#64748b",
-                        }}
+                    Restart
+                  </button>
+                  <button
+                    className="pi-btn"
+                    style={smallBtn}
+                    aria-pressed={isAutoPlaying}
+                    onClick={toggleAutoPlay}
+                  >
+                    {isAutoPlaying ? "Pause" : "Play"}
+                  </button>
+                  <button
+                    className="pi-btn"
+                    style={smallBtn}
+                    onClick={() => jumpToBeat(Math.min(activeBeatIdx + 1, currentPersona.storyBeats.length - 1))}
+                  >
+                    Next
+                  </button>
+                </div>
+                <span style={{ ...tabular, fontSize: "0.8125rem" }}>
+                  <span style={{ color: "var(--pi-blue)" }}>{Math.round(timelineMinutes)}</span>
+                  <span style={{ color: "var(--pi-ink-60)" }}> / {currentPersona.sessionDurationMinutes} min</span>
+                </span>
+              </div>
+
+              {/* Now */}
+              <div style={{ marginTop: "1rem", paddingTop: "1rem", borderTop: "1px solid var(--pi-hairline)" }}>
+                {steppedAway ? (
+                  <p style={{ ...bodyText, margin: 0 }}>Away from the desk.</p>
+                ) : (
+                  <>
+                    <p style={{ ...bodyText, margin: 0 }} className="truncate">
+                      <span style={{ color: "var(--pi-ink-60)" }}>Now: </span>
+                      {currentTasks.active}
+                    </p>
+                    <p style={{ ...mutedText, margin: "0.125rem 0 0" }} className="truncate">
+                      Next: {currentTasks.upcoming}
+                    </p>
+                  </>
+                )}
+                <div className="flex" style={{ gap: "0.375rem", marginTop: "0.75rem" }}>
+                  {steppedAway ? (
+                    <button className="pi-btn flex-1" style={smallBtn} onClick={handlePickBackUp}>
+                      Come back
+                    </button>
+                  ) : (
+                    <>
+                      <button className="pi-btn flex-1" style={smallBtn} onClick={handleStepAway}>
+                        Step away
+                      </button>
+                      <button
+                        className="pi-btn flex-1"
+                        style={smallBtn}
+                        onClick={() => triggerStrike(currentTasks.active, currentTasks.upcoming)}
                       >
-                        {beat.subState}
-                      </span>
-                    </div>
-                    <h5
-                      className="font-bold mb-1"
+                        Finish task
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </Section>
+
+            {/* Timeline */}
+            <Section title="Timeline">
+              <div className="flex" style={{ gap: "1rem" }}>
+                {/* Track */}
+                <div className="flex justify-center shrink-0" style={{ width: "20px" }}>
+                  <div
+                    ref={trackRef}
+                    className="relative cursor-pointer"
+                    style={{ width: "20px", alignSelf: "stretch" }}
+                    onMouseDown={handleTrackMouseDown}
+                  >
+                    {/* Line */}
+                    <div
+                      className="absolute top-0 bottom-0 pointer-events-none"
+                      style={{ left: "50%", width: "1px", backgroundColor: "var(--pi-hairline)" }}
+                    />
+                    {/* Elapsed */}
+                    <div
+                      className="absolute top-0 pointer-events-none"
                       style={{
-                        fontSize: "0.7rem",
-                        color: isActive ? currentPersona.accentColor : "#60a5fa",
+                        left: "50%",
+                        width: "1px",
+                        height: `${(timelineMinutes / currentPersona.sessionDurationMinutes) * 100}%`,
+                        backgroundColor: "var(--pi-ink)",
+                        transition: isDraggingTimeline ? "none" : "height var(--pi-ease-focus)",
+                      }}
+                    />
+                    {/* Beat markers */}
+                    {currentPersona.storyBeats.map((beat, i) => {
+                      const pct = (beat.time / currentPersona.sessionDurationMinutes) * 100;
+                      const isActive = i === activeBeatIdx;
+                      return (
+                        <button
+                          key={i}
+                          aria-label={`Jump to part ${i + 1}`}
+                          className="absolute flex items-center justify-center cursor-pointer"
+                          style={{
+                            left: "50%",
+                            top: `${pct}%`,
+                            width: "16px",
+                            height: "16px",
+                            transform: "translate(-50%, -50%)",
+                            fontSize: "0.55rem",
+                            ...tabular,
+                            border: "1px solid var(--pi-ink)",
+                            backgroundColor: isActive ? "var(--pi-ink)" : "var(--pi-ground)",
+                            color: isActive ? "var(--pi-ground)" : "var(--pi-ink)",
+                            transition: "background-color var(--pi-ease-hover), color var(--pi-ease-hover)",
+                          }}
+                          onClick={(e) => { e.stopPropagation(); jumpToBeat(i); }}
+                        >
+                          {i + 1}
+                        </button>
+                      );
+                    })}
+                    {/* Playhead */}
+                    <div
+                      className="absolute pointer-events-none"
+                      style={{
+                        left: 0,
+                        right: 0,
+                        height: "2px",
+                        top: `${(timelineMinutes / currentPersona.sessionDurationMinutes) * 100}%`,
+                        transform: "translateY(-50%)",
+                        backgroundColor: "var(--pi-blue)",
+                        transition: isDraggingTimeline ? "none" : "top var(--pi-ease-focus)",
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Beats */}
+                <ol className="flex-1 min-w-0" style={{ listStyle: "none", margin: 0, padding: 0 }}>
+                  {currentPersona.storyBeats.map((beat, index) => {
+                    const isActive = index === activeBeatIdx;
+                    const isPast = index < activeBeatIdx;
+                    return (
+                      <li key={index}>
+                        <button
+                          onClick={() => jumpToBeat(index)}
+                          className="w-full text-left cursor-pointer"
+                          style={{
+                            display: "block",
+                            padding: "0.625rem 0.75rem",
+                            border: "none",
+                            borderLeft: `1px solid ${isActive ? "var(--pi-ink)" : "transparent"}`,
+                            background: isActive ? "var(--pi-ink-08)" : "transparent",
+                            color: isPast ? "var(--pi-ink-45)" : "var(--pi-ink)",
+                            fontFamily: "var(--pi-font)",
+                            transition: "background-color var(--pi-ease-hover), border-color var(--pi-ease-focus)",
+                          }}
+                        >
+                          <div className="flex items-baseline" style={{ gap: "0.5rem", fontSize: "0.7rem" }}>
+                            <span style={{ ...tabular, opacity: 0.7 }}>{beat.time} min</span>
+                            <span style={{ opacity: 0.7 }}>{SUB_STATE_WORDS[beat.subState] ?? beat.subState}</span>
+                          </div>
+                          <div style={{ fontSize: "0.8125rem", fontWeight: 500, marginTop: "0.125rem" }}>
+                            {beat.phase}
+                          </div>
+                          {isActive && (
+                            <p style={{ ...mutedText, margin: "0.375rem 0 0", color: "var(--pi-ink-60)" }}>
+                              {beat.narration}
+                            </p>
+                          )}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </div>
+            </Section>
+
+            {/* Sensors (read-only while the story drives them) */}
+            <Section title="Sensors">
+              <div className="flex flex-col" style={{ gap: "0.625rem" }}>
+                <ReadoutBar label="Focus" value={biometrics.focus_percent} />
+                <ReadoutBar label="Fatigue" value={biometrics.fatigue_percent} warn={overThreshold} />
+              </div>
+            </Section>
+          </>
+        ) : (
+          <>
+            {/* Sensors */}
+            <Section title="Sensors">
+              <div className="flex flex-col" style={{ gap: "1.125rem" }}>
+                <SliderRow
+                  label="Focus"
+                  value={biometrics.focus_percent}
+                  onChange={handleFocusChange}
+                />
+                <SliderRow
+                  label="Fatigue"
+                  value={biometrics.fatigue_percent}
+                  onChange={handleFatigueChange}
+                  warn={overThreshold}
+                />
+              </div>
+              <div className="grid grid-cols-2" style={{ gap: "0.5rem", marginTop: "1.25rem" }}>
+                {PRESETS.map(p => (
+                  <button
+                    key={p.label}
+                    className="pi-btn"
+                    onClick={() => setBiometrics({ focus_percent: p.focus, fatigue_percent: p.fatigue })}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </Section>
+
+            {/* Stories */}
+            <Section title="Stories">
+              <div className="flex flex-col" style={{ gap: "0.5rem" }}>
+                {ALL_PERSONAS.map(persona => (
+                  <button
+                    key={persona.id}
+                    className="pi-btn"
+                    aria-pressed={currentPersona?.id === persona.id}
+                    onClick={() => handlePersonaClick(persona.id)}
+                    style={{ textAlign: "left", padding: "0.7rem 0.9rem" }}
+                  >
+                    {persona.name}
+                    <span
+                      style={{
+                        display: "block",
+                        textTransform: "none",
+                        letterSpacing: 0,
+                        fontWeight: 400,
+                        fontSize: "0.75rem",
+                        opacity: 0.7,
+                        marginTop: "0.125rem",
                       }}
                     >
-                      {beat.phase}
-                    </h5>
-                    {isActive && (
-                      <p className="text-slate-300" style={{ fontSize: "0.62rem", lineHeight: "1.5" }}>
-                        {beat.narration}
-                      </p>
-                    )}
-                  </button>
-                );
-              })}
-
-              {/* Biometric readout at bottom */}
-              <div
-                className="p-3 rounded-lg border mt-4"
-                style={{ backgroundColor: "#0f1419", borderColor: "#2a3f5f" }}
-              >
-                <div className="text-slate-500 uppercase tracking-[0.2em] font-bold mb-2" style={{ fontSize: "0.55rem" }}>
-                  Live Biometrics
-                </div>
-                <div className="space-y-1.5">
-                  <BiometricBar label="Focus" value={biometrics.focus_percent} color="#60a5fa" icon={<Brain size={10} />} />
-                  <BiometricBar label="Fatigue" value={biometrics.fatigue_percent} color="#f97316" icon={<Zap size={10} />} warn={biometrics.fatigue_percent > 0.7} />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* ── Friction Keyboard (bottom third) ── */}
-          <div
-            className="shrink-0 px-4 py-3 border-t overflow-y-auto"
-            style={{
-              borderColor: "#2a3f5f",
-              backgroundColor: "#111827",
-              maxHeight: "38%",
-            }}
-          >
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-slate-500 uppercase tracking-[0.2em]" style={{ fontSize: "0.5rem" }}>
-                Hardware Emulation
-              </span>
-            </div>
-            <FrictionKeyboard />
-          </div>
-        </div>
-      )}
-
-      {/* ====== DEFAULT CONTROLS VIEW ====== */}
-      {isExpanded && !showTimeline && (
-        <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6">
-          {/* Biometric Controls */}
-          <div className="space-y-4">
-            <div className="text-blue-300 uppercase tracking-[0.2em] font-bold" style={{ fontSize: "0.65rem" }}>
-              Biometric Override
-            </div>
-
-            {/* Focus */}
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <label className="text-slate-300 font-medium" style={{ fontSize: "0.7rem" }}>Focus</label>
-                <span className="text-blue-400 font-mono font-bold" style={{ fontSize: "0.7rem" }}>
-                  {Math.round(biometrics.focus_percent * 100)}%
-                </span>
-              </div>
-              <input
-                type="range" min="0" max="100"
-                value={biometrics.focus_percent * 100}
-                onChange={(e) => handleFocusChange(Number(e.target.value))}
-                className="w-full h-2 bg-[#0f1419] rounded-lg appearance-none cursor-pointer"
-                style={{ accentColor: "#60a5fa" }}
-              />
-            </div>
-
-            {/* Fatigue */}
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <label className="text-slate-300 font-medium" style={{ fontSize: "0.7rem" }}>Fatigue</label>
-                <span className="text-blue-400 font-mono font-bold" style={{ fontSize: "0.7rem" }}>
-                  {Math.round(biometrics.fatigue_percent * 100)}%
-                </span>
-              </div>
-              <input
-                type="range" min="0" max="100"
-                value={biometrics.fatigue_percent * 100}
-                onChange={(e) => handleFatigueChange(Number(e.target.value))}
-                className="w-full h-2 bg-[#0f1419] rounded-lg appearance-none cursor-pointer"
-                style={{ accentColor: "#60a5fa" }}
-              />
-            </div>
-          </div>
-
-          {/* Quick Presets */}
-          <div>
-            <div className="text-blue-300 uppercase tracking-[0.2em] font-bold mb-3" style={{ fontSize: "0.65rem" }}>
-              Quick Presets
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => setBiometrics({ focus_percent: 0.95, fatigue_percent: 0.2 })}
-                className="px-3 py-2.5 border-2 rounded-lg text-slate-300 hover:text-blue-400 hover:border-blue-400 transition-all font-medium"
-                style={{ fontSize: "0.65rem", borderColor: "#2a3f5f", backgroundColor: "#0f1419" }}
-              >
-                FLOW STATE
-              </button>
-              <button
-                onClick={() => setBiometrics({ focus_percent: 0.25, fatigue_percent: 0.15 })}
-                className="px-3 py-2.5 border-2 rounded-lg text-slate-300 hover:text-blue-400 hover:border-blue-400 transition-all font-medium"
-                style={{ fontSize: "0.65rem", borderColor: "#2a3f5f", backgroundColor: "#0f1419" }}
-              >
-                DISTRACTED
-              </button>
-              <button
-                onClick={() => setBiometrics({ focus_percent: 0.6, fatigue_percent: 0.65 })}
-                className="px-3 py-2.5 border-2 rounded-lg text-slate-300 hover:text-blue-400 hover:border-blue-400 transition-all font-medium"
-                style={{ fontSize: "0.65rem", borderColor: "#2a3f5f", backgroundColor: "#0f1419" }}
-              >
-                THE TAPER
-              </button>
-              <button
-                onClick={() => setBiometrics({ focus_percent: 0.15, fatigue_percent: 0.98 })}
-                className="px-3 py-2.5 border-2 rounded-lg text-slate-300 hover:text-blue-400 hover:border-blue-400 transition-all font-medium"
-                style={{ fontSize: "0.65rem", borderColor: "#2a3f5f", backgroundColor: "#0f1419" }}
-              >
-                BURNOUT
-              </button>
-            </div>
-          </div>
-
-          {/* Persona Selector */}
-          <div>
-            <div className="text-blue-300 uppercase tracking-[0.2em] font-bold mb-3" style={{ fontSize: "0.65rem" }}>
-              Active Persona
-            </div>
-            <div className="space-y-2">
-              {ALL_PERSONAS.map(persona => (
-                <button
-                  key={persona.id}
-                  onClick={() => handlePersonaClick(persona.id)}
-                  className="w-full p-3 border-2 rounded-lg text-left transition-all"
-                  style={{
-                    backgroundColor: currentPersona?.id === persona.id ? "rgba(96, 165, 250, 0.15)" : "#0f1419",
-                    borderColor: currentPersona?.id === persona.id ? "#60a5fa" : "#2a3f5f",
-                    color: currentPersona?.id === persona.id ? "#60a5fa" : "#94a3b8",
-                  }}
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <User size={12} />
-                    <span className="uppercase tracking-[0.1em] font-medium" style={{ fontSize: "0.7rem" }}>
-                      {persona.name}
+                      {persona.archetype}
                     </span>
-                  </div>
-                  <p className="text-slate-400" style={{ fontSize: "0.6rem" }}>
-                    {persona.archetype}
-                  </p>
-                </button>
-              ))}
-            </div>
-          </div>
+                  </button>
+                ))}
+              </div>
+            </Section>
+          </>
+        )}
 
-          {/* ── Friction Keyboard (bottom of controls) ── */}
-          <div
-            className="p-4 rounded-lg border"
-            style={{ borderColor: "#2a3f5f", backgroundColor: "#111827" }}
-          >
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-slate-500 uppercase tracking-[0.2em]" style={{ fontSize: "0.5rem" }}>
-                Hardware Emulation
-              </span>
-            </div>
-            <FrictionKeyboard />
-          </div>
-        </div>
-      )}
-
-      {/* Collapsed state icon */}
-      {!isExpanded && (
-        <div className="flex-1 flex flex-col items-center pt-6 space-y-6">
-          <Activity size={20} className="text-slate-400" />
-          <Sliders size={20} className="text-slate-400" />
-          <User size={20} className="text-slate-400" />
-        </div>
-      )}
+        {/* Keyboard */}
+        <Section title="Keyboard">
+          <FrictionKeyboard />
+        </Section>
+      </div>
     </div>
   );
 }
 
-/** Small inline biometric bar for the timeline view */
-function BiometricBar({
+function Section({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
+  return (
+    <section style={{ padding: "1.25rem", borderTop: "1px solid var(--pi-hairline)" }}>
+      <div className="flex items-center justify-between" style={{ marginBottom: "0.875rem", minHeight: "1.5rem" }}>
+        <h3 className="pi-label" style={{ margin: 0 }}>{title}</h3>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function SliderRow({
   label,
   value,
-  color,
-  icon,
+  onChange,
   warn,
 }: {
   label: string;
   value: number;
-  color: string;
-  icon?: React.ReactNode;
+  onChange: (v: number) => void;
   warn?: boolean;
 }) {
   return (
-    <div className="flex items-center gap-2">
-      {icon && <span style={{ color: warn ? "#ef4444" : color }}>{icon}</span>}
-      <span className="text-slate-400 w-12" style={{ fontSize: "0.6rem" }}>{label}</span>
-      <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: "#1e293b" }}>
-        <div
-          className="h-full rounded-full transition-all"
+    <label className="block">
+      <div className="flex justify-between items-baseline" style={{ marginBottom: "0.375rem" }}>
+        <span style={{ fontSize: "0.8125rem" }}>{label}</span>
+        <span
           style={{
+            ...tabular,
+            fontSize: "0.8125rem",
+            color: warn ? "var(--pi-hot)" : "var(--pi-blue)",
+            transition: "color var(--pi-ease-focus)",
+          }}
+        >
+          {Math.round(value * 100)}%
+        </span>
+      </div>
+      <input
+        type="range"
+        min="0"
+        max="100"
+        className="pi-range cursor-pointer"
+        value={value * 100}
+        onChange={(e) => onChange(Number(e.target.value))}
+      />
+    </label>
+  );
+}
+
+/** Read-only bar for when the story timeline drives the sensors */
+function ReadoutBar({ label, value, warn }: { label: string; value: number; warn?: boolean }) {
+  return (
+    <div className="flex items-center" style={{ gap: "0.75rem" }}>
+      <span style={{ fontSize: "0.8125rem", width: "3.5rem" }}>{label}</span>
+      <div className="flex-1" style={{ height: "2px", backgroundColor: "var(--pi-ink-20)" }}>
+        <div
+          style={{
+            height: "100%",
             width: `${value * 100}%`,
-            backgroundColor: warn ? "#ef4444" : color,
-            transition: "width 0.4s ease",
+            backgroundColor: warn ? "var(--pi-hot)" : "var(--pi-ink)",
+            transition: "width var(--pi-ease-focus), background-color var(--pi-ease-focus)",
           }}
         />
       </div>
       <span
-        className="font-mono w-8 text-right"
-        style={{ fontSize: "0.6rem", color: warn ? "#ef4444" : color }}
+        style={{
+          ...tabular,
+          fontSize: "0.8125rem",
+          width: "2.5rem",
+          textAlign: "right",
+          color: warn ? "var(--pi-hot)" : "var(--pi-blue)",
+        }}
       >
         {Math.round(value * 100)}%
       </span>
