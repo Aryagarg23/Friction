@@ -1,17 +1,17 @@
 /**
  * PROGRESSIVE VIGNETTE — Fatigue 50%–100%
  *
- * Smooth multi-stop radial gradient + grain dithering to eliminate banding.
- * Mouse moves a "torch" that parts the fog around the cursor.
- * At fatigue 100%: calm "time to rest" message.
+ * Edges darken toward ink as fatigue rises, with a faint hot tint at the
+ * far edge. Grain dithers the gradient so it does not band. The fog clears
+ * in a circle around the pointer. Above the intercept threshold a lockout
+ * card asks the user to stop and links to the recap (screen 3).
  */
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion } from "motion/react";
 import { useBiometrics } from "../../context/BiometricContext";
 import { useSession } from "../../context/SessionContext";
 import { useFrictionSettings } from "../../context/FrictionSettingsContext";
-import { FRICTION_FONTS, FRICTION_COLORS } from "../friction-app/friction-styles";
 
 interface Props {
   intensity: number; // 0–1
@@ -63,16 +63,19 @@ export function ProgressiveVignette({ intensity }: Props) {
   const handleGoReflect = useCallback(() => {
     if (transitioning) return;
     setTransitioning(true);
-    // Wait for the cinematic fade-to-black to complete, then navigate
+    // Fade the screen out, then go to the recap
     setTimeout(() => {
       forceScreen(3);
     }, 1800);
   }, [transitioning, forceScreen]);
 
   const edgeDarkness = 0.12 + intensity * 0.68;
-  const redTint = intensity * 0.10;
+  // Share of hot mixed into the ink at the edge (0–15%)
+  const hotShare = intensity * 15;
+  const edgeColor = (alpha: number) =>
+    `color-mix(in srgb, color-mix(in srgb, var(--pi-hot) ${hotShare.toFixed(1)}%, var(--pi-shade)) ${(alpha * 100).toFixed(2)}%, transparent)`;
 
-  // Multi-stop gradient for ultra-smooth falloff
+  // Multi-stop gradient for a smooth falloff
   const buildVignetteGradient = () => {
     const stops: string[] = [];
     const numStops = 20;
@@ -83,16 +86,13 @@ export function ProgressiveVignette({ intensity }: Props) {
       const t = i / numStops;
       const pos = clearRadius + (fadeEnd - clearRadius) * t;
       const easedT = t * t * (3 - 2 * t); // smoothstep
-      const alpha = easedT * edgeDarkness;
-      stops.push(`rgba(0, 0, 0, ${alpha.toFixed(4)}) ${pos.toFixed(1)}%`);
+      stops.push(`${edgeColor(easedT * edgeDarkness)} ${pos.toFixed(1)}%`);
     }
-    stops.push(`rgba(0, 0, 0, ${edgeDarkness.toFixed(3)}) 100%`);
+    stops.push(`${edgeColor(edgeDarkness)} 100%`);
     return `radial-gradient(ellipse at center, transparent ${clearRadius}%, ${stops.join(", ")})`;
   };
 
-  // Build mask-image: a radial white circle (opaque = visible) with a
-  // black hole at the mouse position (transparent = hidden).
-  // This cuts a "torch" hole in the vignette where the mouse is.
+  // Mask with a hole at the pointer so the fog clears around it
   const buildMaskImage = () => {
     if (!mousePos) return "none";
     const radius = 10 + (1 - intensity) * 8; // vw units
@@ -103,12 +103,16 @@ export function ProgressiveVignette({ intensity }: Props) {
     ? { WebkitMaskImage: buildMaskImage(), maskImage: buildMaskImage() }
     : {};
 
+  const focusPct = Math.round(biometrics.focus_percent * 100);
+  const fatiguePct = Math.round(biometrics.fatigue_percent * 100);
+
   return (
     <div
       ref={containerRef}
       className="absolute inset-0 pointer-events-none"
+      style={{ fontFamily: "var(--pi-font)" }}
     >
-      {/* ── Main vignette gradient (masked by mouse position) ── */}
+      {/* Vignette (masked around the pointer) */}
       <div
         className="absolute inset-0"
         style={{
@@ -118,187 +122,82 @@ export function ProgressiveVignette({ intensity }: Props) {
         }}
       />
 
-      {/* ── Grain dithering (always visible, masks banding) ── */}
+      {/* Grain dithering, scaled by the theme's grain strength */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          opacity: 0.18 + intensity * 0.32,
+          opacity: `calc(var(--pi-grain-opacity) * ${(0.12 + intensity * 0.2).toFixed(3)})` as unknown as number,
           mixBlendMode: "overlay",
           backgroundImage: NOISE_SVG,
           backgroundSize: "200px 200px",
         }}
       />
 
-      {/* ── Subtle red pulse at edges ── */}
-      {intensity > 0.2 && (
-        <motion.div
-          className="absolute inset-0 pointer-events-none"
-          animate={{ opacity: [0, intensity * 0.06, 0] }}
-          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-          style={{
-            boxShadow: `inset 0 0 ${50 + intensity * 100}px rgba(255, 95, 143, ${redTint})`,
-          }}
-        />
-      )}
-
-      {/* ── Critical fatigue: gentle rest message ── */}
+      {/* Lockout above the intercept threshold */}
       {isCritical && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 1.5, delay: 0.5 }}
+          transition={{ duration: 0.6, ease: [0.32, 0.72, 0, 1] }}
           className="absolute inset-0 flex items-center justify-center"
-          style={{ backgroundColor: "rgba(6, 10, 18, 0.6)", pointerEvents: "auto" }}
+          style={{
+            backgroundColor: "color-mix(in srgb, var(--pi-ground) 75%, transparent)",
+            pointerEvents: "auto",
+          }}
         >
-          {/* ── Cinematic blackout layer — fades to full black when transitioning ── */}
+          {/* Fades the whole screen to ground before the recap opens */}
           <motion.div
             className="absolute inset-0"
             initial={false}
             animate={{ opacity: transitioning ? 1 : 0 }}
-            transition={{ duration: 1.4, ease: [0.4, 0, 0.2, 1] }}
-            style={{
-              backgroundColor: "rgba(6, 10, 18, 1)",
-              pointerEvents: "none",
-            }}
+            transition={{ duration: 1.4, ease: [0.32, 0.72, 0, 1] }}
+            style={{ backgroundColor: "var(--pi-ground)", pointerEvents: "none" }}
           />
 
-          {/* ── Card + button ── */}
           <motion.div
-            initial={{ opacity: 0, y: 16, scale: 0.97 }}
-            animate={transitioning
-              ? { opacity: 0, y: -24, scale: 0.95, filter: "blur(8px)" }
-              : { opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }
-            }
-            transition={transitioning
-              ? { duration: 0.9, ease: [0.4, 0, 0.2, 1] }
-              : { duration: 0.8, delay: 0.8, ease: "easeOut" }
-            }
-            className="text-center max-w-sm px-10 py-8 rounded-xl relative overflow-hidden"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: transitioning ? 0 : 1 }}
+            transition={{ duration: transitioning ? 0.6 : 0.34, ease: [0.32, 0.72, 0, 1] }}
+            className="relative"
             style={{
-              backgroundColor: "rgba(10, 16, 30, 0.85)",
-              border: `1px solid ${FRICTION_COLORS.borderDefault}`,
-              backdropFilter: "blur(20px)",
-              boxShadow: `0 8px 40px rgba(0, 0, 0, 0.5), 0 0 1px ${FRICTION_COLORS.blueGlow}`,
+              width: 320,
+              padding: 24,
+              backgroundColor: "var(--pi-surface)",
+              border: "1px solid var(--pi-hairline)",
+              color: "var(--pi-ink)",
             }}
           >
-            <div
-              className="absolute inset-0 pointer-events-none rounded-xl"
-              style={{
-                background: `linear-gradient(135deg,
-                  rgba(107, 95, 255, 0.06) 0%,
-                  transparent 40%,
-                  rgba(255, 95, 143, 0.04) 100%
-                )`,
-              }}
-            />
-            <div className="flex justify-center mb-5 relative">
-              <motion.div
-                animate={{
-                  scale: [0.85, 1, 1, 0.85, 0.85],
-                  opacity: [0.3, 0.6, 0.6, 0.3, 0.3],
-                }}
-                transition={{
-                  duration: 8,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                  times: [0, 0.25, 0.5, 0.75, 1],
-                }}
-                className="rounded-full"
-                style={{
-                  width: 48,
-                  height: 48,
-                  backgroundColor: `${FRICTION_COLORS.blue300}10`,
-                  border: `1.5px solid ${FRICTION_COLORS.blue300}40`,
-                  boxShadow: `0 0 20px ${FRICTION_COLORS.blueGlow}`,
-                }}
-              />
+            <div style={{ fontSize: "1rem", fontWeight: 500, marginBottom: 6 }}>
+              Time to stop.
             </div>
+            <div style={{ fontSize: "0.8rem", color: "var(--pi-ink-60)", lineHeight: 1.5, marginBottom: 20 }}>
+              You are too tired to keep working well. Take a break.
+            </div>
+
             <div
-              className="relative mb-2"
+              className="flex"
               style={{
-                fontSize: "0.85rem",
-                color: FRICTION_COLORS.textPrimary,
-                fontFamily: FRICTION_FONTS.heading,
-                letterSpacing: "0.02em",
+                borderTop: "1px solid var(--pi-hairline)",
+                borderBottom: "1px solid var(--pi-hairline)",
+                marginBottom: 20,
               }}
             >
-              Time to rest
-            </div>
-            <div
-              className="relative mb-5"
-              style={{
-                fontSize: "0.65rem",
-                color: FRICTION_COLORS.textSecondary,
-                fontFamily: FRICTION_FONTS.body,
-                lineHeight: 1.6,
-              }}
-            >
-              Your cognitive capacity has been fully spent.
-              <br />
-              Your workspace is secured. Consider reflecting on your session.
-            </div>
-            <div
-              className="flex gap-4 justify-center relative px-4 py-3 rounded-lg"
-              style={{
-                backgroundColor: "rgba(0, 0, 0, 0.2)",
-                border: `1px solid ${FRICTION_COLORS.borderSubtle}`,
-              }}
-            >
-              <div className="text-center">
-                <div
-                  className="uppercase tracking-[0.15em] mb-0.5"
-                  style={{ fontSize: "0.4rem", color: FRICTION_COLORS.textMuted, fontFamily: FRICTION_FONTS.heading }}
-                >
-                  Focus
-                </div>
-                <div className="tabular-nums" style={{ fontSize: "0.75rem", color: FRICTION_COLORS.textMuted, fontFamily: FRICTION_FONTS.heading }}>
-                  {Math.round(biometrics.focus_percent * 100)}%
-                </div>
+              <div className="flex-1" style={{ padding: "10px 0" }}>
+                <div className="pi-label mb-1">Focus</div>
+                <div style={{ fontSize: "1rem", fontVariantNumeric: "tabular-nums" }}>{focusPct}%</div>
               </div>
-              <div style={{ width: 1, backgroundColor: FRICTION_COLORS.borderSubtle }} />
-              <div className="text-center">
-                <div
-                  className="uppercase tracking-[0.15em] mb-0.5"
-                  style={{ fontSize: "0.4rem", color: FRICTION_COLORS.textMuted, fontFamily: FRICTION_FONTS.heading }}
-                >
-                  Fatigue
-                </div>
-                <div className="tabular-nums" style={{ fontSize: "0.75rem", color: FRICTION_COLORS.red300, fontFamily: FRICTION_FONTS.heading }}>
-                  {Math.round(biometrics.fatigue_percent * 100)}%
+              <div style={{ width: 1, backgroundColor: "var(--pi-hairline)" }} />
+              <div className="flex-1" style={{ padding: "10px 0 10px 16px" }}>
+                <div className="pi-label mb-1">Fatigue</div>
+                <div style={{ fontSize: "1rem", fontVariantNumeric: "tabular-nums", color: "var(--pi-hot)" }}>
+                  {fatiguePct}%
                 </div>
               </div>
             </div>
 
-            {/* Go Reflect button */}
-            <motion.button
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 1.6, ease: "easeOut" }}
-              onClick={handleGoReflect}
-              className="relative mt-5 w-full py-2.5 rounded-lg cursor-pointer transition-all"
-              style={{
-                fontFamily: FRICTION_FONTS.heading,
-                fontSize: "0.6rem",
-                letterSpacing: "0.12em",
-                textTransform: "uppercase" as const,
-                color: FRICTION_COLORS.blue200,
-                backgroundColor: "rgba(107, 95, 255, 0.1)",
-                borderWidth: 1,
-                borderStyle: "solid",
-                borderColor: FRICTION_COLORS.borderActive,
-                boxShadow: `0 0 20px ${FRICTION_COLORS.blueGlow}`,
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = "rgba(107, 95, 255, 0.18)";
-                e.currentTarget.style.boxShadow = `0 0 30px ${FRICTION_COLORS.blueGlow}`;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = "rgba(107, 95, 255, 0.1)";
-                e.currentTarget.style.boxShadow = `0 0 20px ${FRICTION_COLORS.blueGlow}`;
-              }}
-            >
-              Go Reflect
-            </motion.button>
+            <button onClick={handleGoReflect} className="pi-btn w-full">
+              See recap
+            </button>
           </motion.div>
         </motion.div>
       )}

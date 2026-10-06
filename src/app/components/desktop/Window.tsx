@@ -1,9 +1,9 @@
 /**
  * WINDOW COMPONENT
  * 
- * Draggable, closeable window wrapper for apps.
- * Includes title bar with window controls and content area.
- * Green button toggles fullscreen (fills the desktop area).
+ * Draggable window frame for the fake apps: plain title bar, minimize,
+ * maximize (fills the desktop area) and close. Double-click the title bar
+ * to toggle maximize.
  */
 
 import { useState, useRef, useEffect, type ReactNode } from "react";
@@ -78,85 +78,78 @@ export function Window({
     toggleFullscreen(windowId);
   };
 
+  const controlIcon = { color: "var(--pi-ink-60)" };
+  const controlClass = "flex items-center justify-center h-full cursor-pointer";
+
   return (
     <div
       ref={windowRef}
-      className="absolute flex flex-col overflow-hidden shadow-2xl"
+      className="absolute flex flex-col overflow-hidden"
       style={{
         left: isFullscreen ? 0 : position.x,
         top: isFullscreen ? 0 : position.y,
         width: isFullscreen ? "100%" : width,
-        height: isFullscreen ? "calc(100% - 72px)" : height,
+        height: isFullscreen ? "calc(100% - 48px)" : height, // taskbar is 48px
         zIndex,
-        backgroundColor: "#1e1e1e",
+        backgroundColor: "var(--pi-surface)",
         border: isFullscreen
           ? "none"
-          : isFocused 
-            ? "1px solid rgba(255, 255, 255, 0.12)" 
-            : "1px solid rgba(255, 255, 255, 0.06)",
-        borderRadius: isFullscreen ? "0" : "8px",
-        boxShadow: isFullscreen
+          : `1px solid ${isFocused ? "var(--pi-ink-45)" : "var(--pi-hairline)"}`,
+        fontFamily: "var(--pi-font)",
+        transition: isDragging
           ? "none"
-          : isFocused 
-            ? "0 20px 60px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05)" 
-            : "0 10px 40px rgba(0, 0, 0, 0.5)",
-        transition: isDragging ? "none" : "left 0.3s ease, top 0.3s ease, width 0.3s ease, height 0.3s ease, border-radius 0.3s ease, box-shadow 0.3s ease",
+          : "left var(--pi-ease-focus), top var(--pi-ease-focus), width var(--pi-ease-focus), height var(--pi-ease-focus), border-color var(--pi-ease-hover)",
       }}
       onMouseDown={() => focusWindow(windowId)}
     >
-      {/* Title Bar */}
+      {/* Title bar */}
       <div
         className="flex items-center justify-between px-3 select-none"
         style={{
-          height: "36px",
-          backgroundColor: "#2d2d2d",
-          borderBottom: "1px solid rgba(255, 255, 255, 0.06)",
+          height: "32px",
+          backgroundColor: "var(--pi-surface)",
+          borderBottom: "1px solid var(--pi-hairline)",
           cursor: isFullscreen ? "default" : "move",
         }}
         onMouseDown={handleMouseDown}
         onDoubleClick={handleTitleDoubleClick}
       >
-        {/* Title (left-aligned, Windows style) */}
         <span
-          className="text-xs uppercase tracking-wider truncate"
+          className="truncate"
           style={{
-            color: "rgba(255, 255, 255, 0.65)",
-            fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+            color: isFocused ? "var(--pi-ink)" : "var(--pi-ink-45)",
             fontWeight: 400,
             fontSize: "0.72rem",
-            letterSpacing: "0.02em",
-            textTransform: "none",
           }}
         >
           {title}
         </span>
 
-        {/* Window Controls — Windows style: right-aligned, rectangular */}
+        {/* Controls: minimize, maximize, close */}
         <div className="window-controls flex items-center h-full -mr-3">
           <button
+            aria-label="Minimize"
             onClick={() => minimizeWindow(windowId)}
-            className="flex items-center justify-center h-full transition-colors cursor-pointer hover:bg-white/10"
-            style={{ width: "46px" }}
+            className={`${controlClass} hover:bg-[var(--pi-ink-08)]`}
+            style={{ width: "42px", transition: "background-color var(--pi-ease-hover)" }}
           >
-            <Minus size={14} style={{ color: "rgba(255,255,255,0.7)" }} />
+            <Minus size={13} style={controlIcon} />
           </button>
           <button
+            aria-label={isFullscreen ? "Restore" : "Maximize"}
             onClick={() => toggleFullscreen(windowId)}
-            className="flex items-center justify-center h-full transition-colors cursor-pointer hover:bg-white/10"
-            style={{ width: "46px" }}
+            className={`${controlClass} hover:bg-[var(--pi-ink-08)]`}
+            style={{ width: "42px", transition: "background-color var(--pi-ease-hover)" }}
           >
-            {isFullscreen ? (
-              <Minimize2 size={14} style={{ color: "rgba(255,255,255,0.7)" }} />
-            ) : (
-              <Maximize2 size={14} style={{ color: "rgba(255,255,255,0.7)" }} />
-            )}
+            {isFullscreen ? <Minimize2 size={13} style={controlIcon} /> : <Maximize2 size={13} style={controlIcon} />}
           </button>
           <button
+            aria-label="Close"
             onClick={() => closeWindow(windowId)}
-            className="flex items-center justify-center h-full transition-colors cursor-pointer hover:bg-[#e81123]"
-            style={{ width: "46px" }}
+            className={`${controlClass} text-[color:var(--pi-ink-60)] hover:bg-[var(--pi-ink)] hover:text-[color:var(--pi-ground)]`}
+            style={{ width: "42px", transition: "background-color var(--pi-ease-hover), color var(--pi-ease-hover)" }}
           >
-            <X size={14} style={{ color: "rgba(255,255,255,0.7)" }} />
+            <X size={13} />
           </button>
         </div>
       </div>

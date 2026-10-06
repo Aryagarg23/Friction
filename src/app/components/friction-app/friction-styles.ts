@@ -76,13 +76,6 @@ export const GRAIN_OVERLAY_STYLE: React.CSSProperties = {
   zIndex: 0,
 };
 
-// ── PANEL ───────────────────────────────────────────────────
-
-export const GLASS_PANEL_STYLE: React.CSSProperties = {
-  backgroundColor: FRICTION_COLORS.bgElevated,
-  border: `1px solid ${FRICTION_COLORS.borderSubtle}`,
-};
-
 // ── SHARED COMPONENT STYLES ─────────────────────────────────
 
 /** Eyebrow label: uppercase, 0.65rem, 0.14em tracking, ink at 60% */
@@ -112,12 +105,6 @@ export const dataStyle: React.CSSProperties = {
   color: FRICTION_COLORS.textPrimary,
 };
 
-export const cardStyle: React.CSSProperties = {
-  backgroundColor: FRICTION_COLORS.bgElevated,
-  border: `1px solid ${FRICTION_COLORS.borderSubtle}`,
-  borderRadius: 0,
-};
-
 /** Primary button: ink outline. Pair with className="pi-btn" for the hover invert. */
 export const btnPrimaryStyle: React.CSSProperties = {
   fontFamily: FRICTION_FONTS.heading,
@@ -132,26 +119,3 @@ export const btnPrimaryStyle: React.CSSProperties = {
   cursor: "pointer",
   padding: "8px 14px",
 };
-
-/** Ending or stopping something: still ink, never the warning color. */
-export const btnDangerStyle: React.CSSProperties = {
-  ...btnPrimaryStyle,
-  fontSize: "0.65rem",
-  padding: "5px 10px",
-};
-
-export const taskRowStyle: React.CSSProperties = {
-  fontFamily: FRICTION_FONTS.body,
-  fontSize: "0.8rem",
-  color: FRICTION_COLORS.textPrimary,
-  backgroundColor: "transparent",
-  borderBottom: `1px solid ${FRICTION_COLORS.borderSubtle}`,
-  borderRadius: 0,
-  padding: "8px 2px",
-};
-
-// ── GRADIENTS ───────────────────────────────────────────────
-// The identity uses flat grounds. This returns "none" so the remaining
-// call site (desktop/RefocusPopup) renders flat until it is removed.
-
-export const blueRedGradient = (_opacity: number = 0.15) => "none";

@@ -1,20 +1,17 @@
 /**
- * DIGITAL MOSS → "NEURAL RESIDUE" — Sub-State 5: The Return
+ * DIGITAL MOSS — after an interruption
  *
- * Canvas-based overlay that creeps from the bezels of the screen when
- * returning from interruption. Reskinned from green "moss" to the
- * Calm Authority blue→violet→red palette so it matches all other
- * Friction OS-side effects.
- *
- * Keywords from the user's last context float in the residue.
- * Mouse swipe to brush away — embodied cognition mechanic.
+ * Ink texture grows in from the screen edges when the user returns from an
+ * interruption. Words from what they were doing sit in the middle. Sweeping
+ * the mouse across it clears it; past 45% cleared it fades out and calls
+ * onClear. Canvas cannot read CSS variables, so each frame reads the
+ * computed --pi-ink / --pi-font so it follows light and dark.
  *
  * SessionContext API unchanged (mossActive / clearMoss / etc.)
  */
 
 import { useRef, useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { FRICTION_COLORS, FRICTION_FONTS } from "../friction-app/friction-styles";
 
 interface Props {
   keywords: string[];
@@ -32,8 +29,8 @@ interface ResidueParticle {
   edge: "top" | "bottom" | "left" | "right";
   depth: number; // how far from edge (0-1)
   cleared: boolean;
-  hue: number;    // 210-280 (blue→violet range)
-  sat: number;    // saturation variance
+  /** Fixed offset for the tendril curve so lines do not flicker */
+  bend: number;
 }
 
 interface KeywordFloat {
@@ -47,19 +44,13 @@ interface KeywordFloat {
   snapY: number;
 }
 
-// Parse hex color to r,g,b tuple
-function hexToRgb(hex: string): [number, number, number] {
-  const h = hex.replace("#", "");
-  return [
-    parseInt(h.slice(0, 2), 16),
-    parseInt(h.slice(2, 4), 16),
-    parseInt(h.slice(4, 6), 16),
-  ];
+function readTheme() {
+  const css = getComputedStyle(document.documentElement);
+  return {
+    ink: css.getPropertyValue("--pi-ink").trim() || "currentColor",
+    font: css.getPropertyValue("--pi-font").trim() || "sans-serif",
+  };
 }
-
-const BLUE_RGB = hexToRgb("#8B7FFF");    // FRICTION_COLORS.blue300 (electric violet)
-const VIOLET_RGB = hexToRgb("#7c4da0");  // FRICTION_COLORS.violet400
-const RED_RGB = hexToRgb("#FF5F8F");     // FRICTION_COLORS.red300 (hot rose)
 
 export function DigitalMoss({ keywords, taskContext, onClear }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -106,10 +97,6 @@ export function DigitalMoss({ keywords, taskContext, onClear }: Props) {
       x += (Math.random() - 0.5) * 40;
       y += (Math.random() - 0.5) * 40;
 
-      // Deeper particles trend redder, edge particles stay bluer
-      const baseHue = 210 + depth * 60 + Math.random() * 20; // 210-290
-      const sat = 40 + Math.random() * 30;
-
       particles.push({
         x, y,
         size: 0,
@@ -119,8 +106,7 @@ export function DigitalMoss({ keywords, taskContext, onClear }: Props) {
         edge,
         depth,
         cleared: false,
-        hue: baseHue,
-        sat,
+        bend: (Math.random() - 0.5) * 20,
       });
     }
 
@@ -177,7 +163,11 @@ export function DigitalMoss({ keywords, taskContext, onClear }: Props) {
 
       const mouse = mouseRef.current;
 
-      // Draw residue particles
+      const theme = readTheme();
+      ctx.fillStyle = theme.ink;
+      ctx.strokeStyle = theme.ink;
+
+      // Draw moss particles: flat ink blobs at low alpha
       for (const p of particlesRef.current) {
         if (p.cleared) continue;
 
@@ -201,12 +191,12 @@ export function DigitalMoss({ keywords, taskContext, onClear }: Props) {
 
         if (p.size < 0.5) continue;
 
-        // Subtle breathing: oscillate size
-        const breathe = 1 + Math.sin(time * 0.8 + p.x * 0.005 + p.y * 0.003) * 0.06;
+        // Very slow size drift so it reads as alive, not animated
+        const breathe = 1 + Math.sin(time * 0.8 + p.x * 0.005 + p.y * 0.003) * 0.03;
 
-        // Draw organic blob
         ctx.beginPath();
-        ctx.globalAlpha = p.opacity;
+        // Edges denser than the middle
+        ctx.globalAlpha = p.opacity * (0.1 + (1 - p.depth) * 0.12);
 
         const segments = 6;
         for (let s = 0; s <= segments; s++) {
@@ -219,18 +209,10 @@ export function DigitalMoss({ keywords, taskContext, onClear }: Props) {
           else ctx.lineTo(px, py);
         }
         ctx.closePath();
-
-        // Blue → violet → red gradient per particle
-        const lightness = 22 + (1 - p.depth) * 12; // brighter at edges
-        const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * breathe);
-        gradient.addColorStop(0, `hsla(${p.hue}, ${p.sat}%, ${lightness + 8}%, ${p.opacity})`);
-        gradient.addColorStop(0.6, `hsla(${p.hue}, ${p.sat - 10}%, ${lightness}%, ${p.opacity * 0.6})`);
-        gradient.addColorStop(1, `hsla(${p.hue}, ${p.sat - 15}%, ${lightness - 5}%, 0)`);
-        ctx.fillStyle = gradient;
         ctx.fill();
       }
 
-      // Draw connecting tendrils between nearby particles (blue-violet)
+      // Thin ink lines between nearby particles
       ctx.lineWidth = 1;
       const activeParticles = particlesRef.current.filter(p => !p.cleared && p.size > 3);
       for (let i = 0; i < activeParticles.length; i += 3) {
@@ -239,24 +221,21 @@ export function DigitalMoss({ keywords, taskContext, onClear }: Props) {
           const b = activeParticles[j];
           const d = Math.hypot(a.x - b.x, a.y - b.y);
           if (d < 60) {
-            const fade = 1 - d / 60;
-            // Blend between blue and violet for tendrils
-            const avgHue = (a.hue + b.hue) / 2;
-            ctx.globalAlpha = 0.1 * fade;
-            ctx.strokeStyle = `hsla(${avgHue}, 45%, 35%, 0.4)`;
+            ctx.globalAlpha = 0.12 * (1 - d / 60);
             ctx.beginPath();
             ctx.moveTo(a.x, a.y);
-            const cx = (a.x + b.x) / 2 + (Math.random() - 0.5) * 20;
-            const cy = (a.y + b.y) / 2 + (Math.random() - 0.5) * 20;
+            const cx = (a.x + b.x) / 2 + a.bend;
+            const cy = (a.y + b.y) / 2 + b.bend;
             ctx.quadraticCurveTo(cx, cy, b.x, b.y);
             ctx.stroke();
           }
         }
       }
 
-      // Draw keywords with blue→violet glow
+      // Context words, plain ink
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
+      ctx.font = `500 13px ${theme.font}`;
 
       for (const kw of keywordsRef.current) {
         if (kw.cleared) continue;
@@ -274,38 +253,17 @@ export function DigitalMoss({ keywords, taskContext, onClear }: Props) {
         if (kw.opacity < 0.01) continue;
 
         ctx.globalAlpha = kw.opacity * growth;
-        ctx.font = `500 13px ${FRICTION_FONTS.mono}`;
-
-        // Blue-violet text glow
-        ctx.shadowColor = `rgba(${BLUE_RGB[0]}, ${BLUE_RGB[1]}, ${BLUE_RGB[2]}, 0.8)`;
-        ctx.shadowBlur = 12;
-        // Cool white-blue text
-        ctx.fillStyle = `rgba(${BLUE_RGB[0] + 90}, ${BLUE_RGB[1] + 80}, ${BLUE_RGB[2] + 40}, ${kw.opacity * 0.9})`;
         ctx.fillText(kw.text, kw.x, kw.y);
-
-        // Outline in violet
-        ctx.shadowBlur = 0;
-        ctx.strokeStyle = `rgba(${VIOLET_RGB[0]}, ${VIOLET_RGB[1]}, ${VIOLET_RGB[2]}, ${kw.opacity * 0.4})`;
-        ctx.lineWidth = 0.5;
-        ctx.strokeText(kw.text, kw.x, kw.y);
       }
 
-      ctx.shadowBlur = 0;
       ctx.globalAlpha = 1;
 
-      // Edge vignette — deep navy instead of green
-      const edgeGrad = ctx.createRadialGradient(w/2, h/2, Math.min(w, h) * 0.3, w/2, h/2, Math.max(w, h) * 0.7);
-      edgeGrad.addColorStop(0, "transparent");
-      edgeGrad.addColorStop(1, `rgba(6, 10, 18, ${growth * 0.35})`);
-      ctx.fillStyle = edgeGrad;
-      ctx.fillRect(0, 0, w, h);
-
-      // Calculate clear progress — only setState when rounded % changes
+      // Calculate clear progress — only setState when the whole percent changes
       const total = particlesRef.current.length;
       const cleared = particlesRef.current.filter(p => p.cleared).length;
       const progress = cleared / total;
-      const rounded = Math.round(progress * 100);
-      if (rounded !== Math.round(lastProgressRef.current * 100)) {
+      const pct = Math.round(progress * 100);
+      if (pct !== Math.round(lastProgressRef.current * 100)) {
         lastProgressRef.current = progress;
         setClearProgress(progress);
       }
@@ -353,90 +311,47 @@ export function DigitalMoss({ keywords, taskContext, onClear }: Props) {
         initial={{ opacity: 0 }}
         animate={{ opacity: isClearing ? 0 : 1 }}
         exit={{ opacity: 0 }}
-        transition={{ duration: isClearing ? 1.2 : 0.8 }}
+        transition={{ duration: isClearing ? 1.2 : 0.6, ease: [0.32, 0.72, 0, 1] }}
         className="absolute inset-0 cursor-crosshair"
         style={{ zIndex: 8500 }}
         onMouseMove={handleMouseMove}
       >
         <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
 
-        {/* Context recovery header */}
+        {/* Header */}
         <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: isClearing ? 0 : 1, y: 0 }}
-          transition={{ delay: 1.5, duration: 0.8 }}
-          className="absolute top-8 left-1/2 -translate-x-1/2 text-center"
-          style={{ zIndex: 8501 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: isClearing ? 0 : 1 }}
+          transition={{ delay: isClearing ? 0 : 1, duration: 0.34, ease: [0.32, 0.72, 0, 1] }}
+          className="absolute top-8 left-1/2 -translate-x-1/2 text-center pointer-events-none"
+          style={{ zIndex: 8501, fontFamily: "var(--pi-font)" }}
         >
-          <div
-            className="uppercase tracking-[0.3em] mb-2"
-            style={{
-              fontFamily: FRICTION_FONTS.heading,
-              color: FRICTION_COLORS.blue200,
-              fontSize: "0.6rem",
-              textShadow: `0 0 20px ${FRICTION_COLORS.blueGlow}`,
-            }}
-          >
-            Returning from Interruption
-          </div>
+          <div className="pi-label mb-2">Where you left off</div>
           {taskContext && (
-            <div
-              className="mb-3"
-              style={{
-                fontFamily: FRICTION_FONTS.body,
-                color: FRICTION_COLORS.textSecondary,
-                fontSize: "0.75rem",
-              }}
-            >
+            <div style={{ color: "var(--pi-ink)", fontSize: "0.8rem" }}>
               {taskContext}
             </div>
           )}
         </motion.div>
 
-        {/* Swipe prompt */}
+        {/* Prompt + progress */}
         <motion.div
           initial={{ opacity: 0 }}
-          animate={{ opacity: isClearing ? 0 : [0.4, 0.8, 0.4] }}
-          transition={{ delay: 2.5, duration: 2, repeat: Infinity }}
-          className="absolute bottom-12 left-1/2 -translate-x-1/2 text-center"
-          style={{ zIndex: 8501 }}
+          animate={{ opacity: isClearing ? 0 : 1 }}
+          transition={{ delay: isClearing ? 0 : 1.5, duration: 0.34, ease: [0.32, 0.72, 0, 1] }}
+          className="absolute bottom-16 left-1/2 -translate-x-1/2 text-center pointer-events-none"
+          style={{ zIndex: 8501, fontFamily: "var(--pi-font)" }}
         >
-          <div
-            className="uppercase tracking-[0.2em]"
-            style={{
-              fontFamily: FRICTION_FONTS.heading,
-              color: "var(--friction-accent-amber)",
-              fontSize: "0.65rem",
-              textShadow: "0 0 10px rgba(255, 167, 38, 0.5)",
-            }}
-          >
-            Swipe to clear and resume
+          <div style={{ color: "var(--pi-ink)", fontSize: "0.8rem" }}>
+            Sweep the mouse across the screen to clear this.
           </div>
           <div
-            className="mt-2"
-            style={{
-              fontFamily: FRICTION_FONTS.mono,
-              color: FRICTION_COLORS.textMuted,
-              fontSize: "0.55rem",
-            }}
+            className="mt-1"
+            style={{ color: "var(--pi-ink-60)", fontSize: "0.7rem", fontVariantNumeric: "tabular-nums" }}
           >
             {Math.round(clearProgress * 100)}% cleared
           </div>
         </motion.div>
-
-        {/* Mouse trail glow — blue-violet radial */}
-        <div
-          className="pointer-events-none absolute rounded-full"
-          style={{
-            left: mouseRef.current.x - 50,
-            top: mouseRef.current.y - 50,
-            width: 100,
-            height: 100,
-            background: `radial-gradient(circle, ${FRICTION_COLORS.blueGlow} 0%, rgba(124, 77, 160, 0.08) 50%, transparent 70%)`,
-            mixBlendMode: "screen",
-            zIndex: 8502,
-          }}
-        />
       </motion.div>
     </AnimatePresence>
   );

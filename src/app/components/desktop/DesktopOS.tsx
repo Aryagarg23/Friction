@@ -1,14 +1,13 @@
 /**
  * DESKTOP OS
  *
- * Main desktop environment with OS-level Friction effects:
- * - FlowPill: current task pill at top in max focus (>0.80)
- * - PeekCard: task queue peeking from bottom (0.30-0.80), breathes below 0.50
- * - RefocusPopup: 3 exercise options when focus < 0.30
- * - Taper Ambient: warm color shift & grain when focus 0.50-0.70 and fatigue rising
- * - Tactile Strike: glassmorphic ripple on task completion in flow
- * - Neural Residue: canvas overlay on return from interruption (blue-violet-red)
- * - Progressive Vignette: starts at fatigue 50%, gentle at 100%
+ * The fake desktop a normal person uses, with Friction's effects on top:
+ * - FocusIndicator: task strip at top center (pill above 0.80 focus, peek card 0.30-0.80)
+ * - RefocusPopup: pick a short reset exercise when focus <= 0.30
+ * - Taper: faint warm tint and grain when focus 0.40-0.70 and fatigue > 0.45
+ * - TactileStrike: small "done / next" card when a task is struck
+ * - DigitalMoss: ink texture after an interruption, swept away with the mouse
+ * - ProgressiveVignette: edges darken from fatigue 50%
  * - Brightness dimming: continuous function of focus
  */
 
@@ -25,6 +24,7 @@ import { ProgressiveVignette } from "./ProgressiveVignette";
 import { FocusIndicator } from "./FocusIndicator";
 import { RefocusPopup } from "./RefocusPopup";
 import { AnimatePresence, motion } from "motion/react";
+import { GRAIN_OVERLAY_STYLE } from "../friction-app/friction-styles";
 
 // App component imports
 import { VSCodeApp } from "../apps/VSCodeApp";
@@ -129,12 +129,12 @@ export function DesktopOS() {
     ? Math.min(1, (fatigue - 0.45) / 0.4) * (1 - Math.abs(focus - 0.55) / 0.25)
     : 0;
 
-  // Warm sepia overlay for taper state
+  // Faint warm tint for taper state (same 0-6% strength as before, now the hot token)
   const taperWarmth = taperIntensity > 0
-    ? `rgba(255, 140, 50, ${taperIntensity * 0.06})`
+    ? `color-mix(in srgb, var(--pi-hot) ${(taperIntensity * 6).toFixed(2)}%, transparent)`
     : "transparent";
 
-  // Slight grain increase during taper (via opacity of body noise)
+  // Slight grain increase during taper
   const grainOpacity = taperIntensity > 0
     ? 0.03 + taperIntensity * 0.04
     : 0;
@@ -143,17 +143,16 @@ export function DesktopOS() {
     <div
       className="relative w-full h-full overflow-hidden"
       style={{
-        backgroundColor: "#87CEEB",
+        backgroundColor: "var(--pi-ground)",
+        fontFamily: "var(--pi-font)",
         filter: `brightness(${brightness})`,
         transition: "filter 1.5s ease",
       }}
       onClick={handleDesktopClick}
     >
-      {/* Desktop wallpaper / background */}
-      <div
-        className="absolute inset-0"
-        style={{ backgroundColor: "#87CEEB" }}
-      />
+      {/* Wallpaper: flat ground with faint grain */}
+      <div className="absolute inset-0" style={{ backgroundColor: "var(--pi-ground)" }} />
+      <div style={GRAIN_OVERLAY_STYLE} />
 
       {/* Desktop Icons */}
       <div className="absolute inset-0 p-4" style={{ paddingBottom: "56px" }}>
@@ -168,10 +167,9 @@ export function DesktopOS() {
                 left: `${12 + icon.gridCol * 90}px`,
                 width: "76px",
                 height: "82px",
-                borderRadius: "6px",
-                backgroundColor: isSelected ? "rgba(60, 130, 246, 0.3)" : "transparent",
-                border: isSelected ? "1px solid rgba(60, 130, 246, 0.5)" : "1px solid transparent",
-                transition: "background-color 0.1s, border-color 0.1s",
+                backgroundColor: isSelected ? "var(--pi-ink-08)" : "transparent",
+                border: isSelected ? "1px solid var(--pi-hairline)" : "1px solid transparent",
+                transition: "background-color var(--pi-ease-hover), border-color var(--pi-ease-hover)",
               }}
               onClick={(e) => {
                 e.stopPropagation();
@@ -188,7 +186,6 @@ export function DesktopOS() {
                   width: "42px",
                   height: "42px",
                   fontSize: "1.7rem",
-                  filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.5))",
                 }}
               >
                 {icon.icon}
@@ -197,8 +194,7 @@ export function DesktopOS() {
                 className="text-center mt-0.5 px-1"
                 style={{
                   fontSize: "0.65rem",
-                  color: "#fff",
-                  textShadow: "0 1px 3px rgba(0,0,0,0.8), 0 0px 6px rgba(0,0,0,0.5)",
+                  color: "var(--pi-ink)",
                   lineHeight: "1.2",
                   maxWidth: "72px",
                   overflow: "hidden",
@@ -230,9 +226,9 @@ export function DesktopOS() {
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
-            backgroundImage: "var(--friction-texture-noise)",
-            opacity: grainOpacity,
-            mixBlendMode: "overlay",
+            backgroundImage: GRAIN_OVERLAY_STYLE.backgroundImage,
+            backgroundSize: GRAIN_OVERLAY_STYLE.backgroundSize,
+            opacity: `calc(var(--pi-grain-opacity) * ${grainOpacity.toFixed(3)})` as unknown as number,
             transition: "opacity 2s ease",
             zIndex: 4001,
           }}
@@ -276,7 +272,7 @@ export function DesktopOS() {
         )}
       </AnimatePresence>
 
-      {/* Neural Residue — canvas overlay on return from interruption */}
+      {/* Moss — ink texture after an interruption */}
       {mossShown && (
         <DigitalMoss
           keywords={mossKeywords}
@@ -284,13 +280,16 @@ export function DesktopOS() {
         />
       )}
 
-      {/* Tactile Strike — glassmorphic ripple on task completion */}
-      {tactileStrikeData && fx.frictionEnabled && fx.tactileStrike && (
-        <TactileStrike
-          completedTask={tactileStrikeData.completed}
-          nextTask={tactileStrikeData.next}
-        />
-      )}
+      {/* Tactile Strike — "done / next" card when a task is struck */}
+      <AnimatePresence>
+        {tactileStrikeData && fx.frictionEnabled && fx.tactileStrike && (
+          <TactileStrike
+            key="tactile-strike"
+            completedTask={tactileStrikeData.completed}
+            nextTask={tactileStrikeData.next}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Progressive Vignette — starts at fatigue 50%, increases to 100% */}
       <AnimatePresence>
@@ -301,7 +300,7 @@ export function DesktopOS() {
             style={{ zIndex: 9000, pointerEvents: "none" }}
             initial={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 1.2, ease: [0.4, 0, 0.2, 1] }}
+            transition={{ duration: 0.34, ease: [0.32, 0.72, 0, 1] }}
           >
             <ProgressiveVignette intensity={Math.min(1, (fatigue - 0.50) / 0.50)} />
           </motion.div>

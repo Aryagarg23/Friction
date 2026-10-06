@@ -3,6 +3,8 @@
  *
  * Returns a ref whose `.current` is the eased breath value (0→1→0)
  * on an 8-second cycle, synced across every consumer via absolute time.
+ * 8s is a real breath (4s in, 4s out), so it stays longer than the
+ * 2.5-3.5s idle loops used elsewhere.
  *
  * Uses a raised-cosine + smoothstep for C∞ smooth easing with
  * natural plateau holds at peaks and troughs.
@@ -24,22 +26,14 @@ export interface BreathState {
   t: number;
   /** Raw phase 0→1 within the cycle */
   phase: number;
-  /** RGB tuple interpolated blue→red — mutated in-place, never re-allocated */
-  color: [number, number, number];
 }
 
-const shared: BreathState = { t: 0, phase: 0, color: [90, 143, 196] };
+const shared: BreathState = { t: 0, phase: 0 };
 
 // ── Math ──
 function smoothBreath(phase: number): number {
   const raw = 0.5 - 0.5 * Math.cos(2 * Math.PI * phase);
   return raw * raw * (3 - 2 * raw); // smoothstep flattens peaks
-}
-
-function updateColor(t: number, out: [number, number, number]): void {
-  out[0] = 90 + t * 108;   // 90→198
-  out[1] = 143 - t * 58;   // 143→85
-  out[2] = 196 - t * 100;  // 196→96
 }
 
 // ── Global singleton RAF (module-scoped) ──
@@ -50,7 +44,6 @@ function tick() {
   const now = performance.now() / 1000;
   shared.phase = (now % BREATH_CYCLE) / BREATH_CYCLE;
   shared.t = smoothBreath(shared.phase);
-  updateColor(shared.t, shared.color);
   rafId = requestAnimationFrame(tick);
 }
 
@@ -74,7 +67,7 @@ function unsubscribe() {
  * Returns a ref whose `.current` points directly to the shared BreathState
  * that the global RAF mutates in-place — no per-frame copies, no GC pressure.
  *
- * Read `.current.t`, `.current.color` etc. in your own RAF or event handler.
+ * Read `.current.t` / `.current.phase` in your own RAF or event handler.
  *
  * @param active – pass false to pause subscription (e.g. when not breathing)
  */
