@@ -1,36 +1,4 @@
 @import './fonts.css';
 @import './tailwind.css';
 @import './theme.css';
-
-/**
- * ACTIVE THEME IMPORT
- * 
- * Import ONE of the following theme files to set the visual aesthetic:
- * 
- * - './themes/brutalist-tactile.css'  — Dark matte black, amber/orange glow, Dune-inspired
- * - './themes/invisible-clinic.css'   — Frost white, cyan/blue, Apple-esque ethereal
- * 
- * This import MUST come after theme.css to properly override Tailwind variables.
- * All components reference --friction-* CSS variables defined in the theme file.
- */
-@import './themes/brutalist-tactile.css';
-
-/**
- * CHUNK-SPECIFIC CSS TOKENS
- * 
- * Component-specific tokens separated by architectural chunk.
- * These MUST come after the active theme import so they can reference
- * shared --friction-* variables from the base theme.
- * 
- * Chunk 1: Neural Interface (left panel — simulation controls)
- * Chunk 2: Desktop OS (right panel — fake Windows environment)
- * Chunk 3: Friction App (within the OS — Terminal/Session/Mirror)
- */
-@import './themes/neural-interface.css';
-@import './themes/desktop-os.css';
-@import './themes/friction-app.css';
-
-@keyframes grainFadeIn {
-  from { opacity: 0; }
-  to { opacity: 0.55; }
-}
+@import './identity.css';

@@ -13,8 +13,7 @@
  */
 
 import { useRef, useEffect, useCallback } from "react";
-import { FRICTION_COLORS } from "./friction-styles";
-import type { PoolStage } from "./friction-styles";
+import type { PoolStage } from "./moon-pool-stages";
 
 interface Particle {
   x: number;

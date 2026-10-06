@@ -1,29 +1,22 @@
 /**
- * REFLECTION PAGE — 3-screen Mirror replacement
+ * RECAP SCREEN (drawerScreen "mirror")
  * ============================================================
- * Screen 1: Latest Session Recap (tasks from SessionContext + reflection box)
- * Screen 2: Session History (stat cards, session list, radial clock, bar chart)
- * Screen 3: Session Detail (drill-down with contextual insights)
+ * Three tabs:
+ *   Last session: the tasks from the session that just ended, plus notes.
+ *   History:      totals, recent sessions, and two small charts.
+ *   Details:      one total at a time, with plain notes on what it means.
  *
- * Supports squished (45% drawer) and expanded (100% full-screen) layouts.
- * All visuals are bespoke SVG — no charting libraries.
- * Uses Calm Authority palette from friction-styles.ts.
+ * Works in the split (45%) and full screen drawer. Charts are plain SVG.
  */
 
-import { useState, useMemo, useRef, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { useState, useMemo } from "react";
 import {
-  ChevronLeft, ChevronRight, Clock, Flame, Zap, Calendar,
-  TrendingUp, BarChart3, Activity, Sun, ArrowUpRight, ArrowDownRight,
-} from "lucide-react";
-import {
-  FRICTION_FONTS, FRICTION_COLORS, GRAIN_OVERLAY_STYLE,
-  labelStyle, bodyStyle, dataStyle, cardStyle, btnPrimaryStyle, blueRedGradient,
+  FRICTION_FONTS, FRICTION_COLORS, labelStyle, bodyStyle, dataStyle,
 } from "./friction-styles";
 import {
   PAST_SESSIONS, INTENSITY_DISTRIBUTION, SESSIONS_THIS_MONTH,
   TOTAL_DEEP_WORK_HOURS, WEEKLY_INTENSITY, HOURLY_INTENSITY,
-  DETAIL_INSIGHTS, type ReflectionTask, type PastSession,
+  DETAIL_INSIGHTS, type ReflectionTask,
 } from "./reflection-data";
 
 // ── Types ───────────────────────────────────────────────────
@@ -43,21 +36,58 @@ interface ReflectionPageProps {
 function formatDuration(mins: number): string {
   const h = Math.floor(mins / 60);
   const m = mins % 60;
-  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+  if (h === 0) return `${m} min`;
+  return m === 0 ? `${h} h` : `${h} h ${m} min`;
 }
 
-function intensityColor(label: "high" | "moderate" | "low" | "High" | "Moderate" | "Calm"): string {
+/** One word for how hard something was. Data uses high/moderate/low and High/Moderate/Calm. */
+function levelWord(label: string): string {
   const l = label.toLowerCase();
-  if (l === "high") return FRICTION_COLORS.red300;
-  if (l === "moderate") return FRICTION_COLORS.violet300;
-  return FRICTION_COLORS.blue300;
+  if (l === "high") return "Hard";
+  if (l === "moderate") return "Medium";
+  return "Light";
 }
 
-function intensityBg(label: string): string {
-  const l = label.toLowerCase();
-  if (l === "high") return "rgba(255, 95, 143, 0.1)";
-  if (l === "moderate") return "rgba(124, 77, 160, 0.1)";
-  return "rgba(107, 95, 255, 0.1)";
+const ruleRow: React.CSSProperties = {
+  borderBottom: `1px solid ${FRICTION_COLORS.borderDefault}`,
+};
+
+const numeric: React.CSSProperties = {
+  ...dataStyle,
+  fontSize: "0.75rem",
+  textAlign: "right",
+  whiteSpace: "nowrap",
+};
+
+// Bars use ink at a few strengths. Height or length carries the value.
+const INK_STRONG = "var(--pi-ink)";
+const INK_MID = "var(--pi-ink-60)";
+const INK_SOFT = "var(--pi-ink-20)";
+
+/** Text tab: plain word, underlined when selected. */
+function TextTab({
+  selected, onClick, children,
+}: { selected: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={selected}
+      className={`cursor-pointer py-1 transition-opacity duration-150 ${selected ? "" : "opacity-60 hover:opacity-100"}`}
+      style={{
+        fontFamily: FRICTION_FONTS.body,
+        fontSize: "0.8rem",
+        fontWeight: selected ? 500 : 400,
+        color: FRICTION_COLORS.textPrimary,
+        background: "none",
+        border: "none",
+        borderBottom: `1px solid ${selected ? FRICTION_COLORS.textPrimary : "transparent"}`,
+        padding: "4px 0",
+      }}
+    >
+      {children}
+    </button>
+  );
 }
 
 // ── Main Component ──────────────────────────────────────────
@@ -67,10 +97,10 @@ export function ReflectionPage({ sessionTasks, fullScreen = false }: ReflectionP
   const [detailView, setDetailView] = useState<DetailView>("intensity");
   const [reflectionText, setReflectionText] = useState("");
 
-  const goToDetail = useCallback((view: DetailView) => {
+  const goToDetail = (view: DetailView) => {
     setDetailView(view);
     setScreen("detail");
-  }, []);
+  };
 
   const isSquished = !fullScreen;
 
@@ -79,89 +109,36 @@ export function ReflectionPage({ sessionTasks, fullScreen = false }: ReflectionP
       className="flex flex-col h-full"
       style={{ fontFamily: FRICTION_FONTS.body, color: FRICTION_COLORS.textPrimary }}
     >
-      {/* ── Sub-Tab Bar ── */}
       <div
-        className="flex items-center gap-1 px-4 py-2 shrink-0"
-        style={{ borderBottom: `1px solid ${FRICTION_COLORS.borderSubtle}` }}
+        className="flex items-center gap-5 px-5 shrink-0"
+        style={{ borderBottom: `1px solid ${FRICTION_COLORS.borderDefault}` }}
       >
         {([
-          { key: "recap", label: "Recap" },
+          { key: "recap", label: "Last session" },
           { key: "history", label: "History" },
-          { key: "detail", label: "Detail" },
+          { key: "detail", label: "Details" },
         ] as const).map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => setScreen(tab.key)}
-            className="px-3 py-1 rounded-md cursor-pointer transition-all"
-            style={{
-              fontFamily: FRICTION_FONTS.heading,
-              fontSize: "0.5rem",
-              letterSpacing: "0.1em",
-              textTransform: "uppercase",
-              backgroundColor: screen === tab.key ? "rgba(107, 95, 255, 0.1)" : "transparent",
-              border: `1px solid ${screen === tab.key ? FRICTION_COLORS.borderActive : "transparent"}`,
-              color: screen === tab.key ? FRICTION_COLORS.blue200 : FRICTION_COLORS.textMuted,
-            }}
-          >
+          <TextTab key={tab.key} selected={screen === tab.key} onClick={() => setScreen(tab.key)}>
             {tab.label}
-          </button>
+          </TextTab>
         ))}
       </div>
 
-      {/* ── Screen Content ── */}
-      <div className="flex-1 overflow-y-auto relative">
-        <AnimatePresence mode="wait">
-          {screen === "recap" && (
-            <motion.div
-              key="recap"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              transition={{ duration: 0.25 }}
-              className="h-full"
-            >
-              <RecapScreen
-                sessionTasks={sessionTasks}
-                reflectionText={reflectionText}
-                onReflectionChange={setReflectionText}
-                onGoHistory={() => setScreen("history")}
-                isSquished={isSquished}
-              />
-            </motion.div>
-          )}
-          {screen === "history" && (
-            <motion.div
-              key="history"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              transition={{ duration: 0.25 }}
-              className="h-full"
-            >
-              <HistoryScreen
-                onDrillDown={goToDetail}
-                isSquished={isSquished}
-              />
-            </motion.div>
-          )}
-          {screen === "detail" && (
-            <motion.div
-              key="detail"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              transition={{ duration: 0.25 }}
-              className="h-full"
-            >
-              <DetailScreen
-                activeView={detailView}
-                onChangeView={setDetailView}
-                onBack={() => setScreen("history")}
-                isSquished={isSquished}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
+      <div className="flex-1 overflow-y-auto">
+        {screen === "recap" && (
+          <RecapScreen
+            sessionTasks={sessionTasks}
+            reflectionText={reflectionText}
+            onReflectionChange={setReflectionText}
+            isSquished={isSquished}
+          />
+        )}
+        {screen === "history" && (
+          <HistoryScreen onDrillDown={goToDetail} isSquished={isSquished} />
+        )}
+        {screen === "detail" && (
+          <DetailScreen activeView={detailView} onChangeView={setDetailView} isSquished={isSquished} />
+        )}
       </div>
     </div>
   );
@@ -169,19 +146,18 @@ export function ReflectionPage({ sessionTasks, fullScreen = false }: ReflectionP
 
 
 // ══════════════════════════════════════════════════════════════
-//  SCREEN 1: RECAP
+//  LAST SESSION
 // ══════════════════════════════════════════════════════════════
 
 function RecapScreen({
-  sessionTasks, reflectionText, onReflectionChange, onGoHistory, isSquished,
+  sessionTasks, reflectionText, onReflectionChange, isSquished,
 }: {
   sessionTasks: ReflectionPageProps["sessionTasks"];
   reflectionText: string;
   onReflectionChange: (v: string) => void;
-  onGoHistory: () => void;
   isSquished: boolean;
 }) {
-  // Derive reflection tasks from session context OR fall back to latest past session
+  // Use the live session's tasks, or the latest past session as a fallback.
   const tasks: ReflectionTask[] = useMemo(() => {
     if (sessionTasks.length > 0) {
       return sessionTasks.map(t => ({
@@ -201,111 +177,64 @@ function RecapScreen({
   const totalDuration = tasks.reduce((s, t) => s + t.durationMinutes, 0);
 
   return (
-    <div className="px-5 py-5 space-y-5">
-      {/* Header */}
-      <div>
-        <div style={{ ...labelStyle, marginBottom: 4 }}>Latest Session</div>
-        <div className="flex items-center gap-3">
-          <span style={{ ...dataStyle, fontSize: "0.55rem", color: FRICTION_COLORS.textMuted }}>
-            {completedCount}/{tasks.length} tasks &middot; {formatDuration(totalDuration)}
-          </span>
-        </div>
-      </div>
+    <div className="px-5 py-5 space-y-6" style={{ maxWidth: 720 }}>
+      <p style={{ ...bodyStyle, margin: 0, fontVariantNumeric: "tabular-nums" }}>
+        {completedCount} of {tasks.length} tasks done · {formatDuration(totalDuration)}
+      </p>
 
-      {/* Task list */}
-      <div className="space-y-1.5">
-        {tasks.map((task, i) => (
-          <motion.div
-            key={task.id}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05 }}
-            className="flex items-center gap-3 px-3 py-2 rounded-lg"
-            style={{
-              backgroundColor: FRICTION_COLORS.bgElevated,
-              border: `1px solid ${FRICTION_COLORS.borderSubtle}`,
-            }}
-          >
-            {/* Completion indicator */}
-            <div
-              className="w-2 h-2 rounded-full shrink-0"
+      <div style={{ borderTop: `1px solid ${FRICTION_COLORS.borderDefault}` }}>
+        {tasks.map(task => (
+          <div key={task.id} className="flex items-center gap-3 py-2" style={ruleRow}>
+            <span
+              aria-label={task.completed ? "Done" : "Not done"}
+              className="shrink-0"
               style={{
-                backgroundColor: task.completed ? FRICTION_COLORS.success : "transparent",
-                border: task.completed ? "none" : `1.5px solid ${FRICTION_COLORS.textMuted}`,
+                width: 8, height: 8,
+                border: `1px solid ${FRICTION_COLORS.textPrimary}`,
+                backgroundColor: task.completed ? FRICTION_COLORS.textPrimary : "transparent",
               }}
             />
-
-            {/* Title */}
             <span
               className="flex-1 truncate"
               style={{
-                fontSize: "0.65rem",
+                fontSize: "0.8rem",
                 color: task.completed ? FRICTION_COLORS.textPrimary : FRICTION_COLORS.textMuted,
-                textDecoration: task.completed ? "none" : "none",
               }}
             >
               {task.title}
             </span>
-
-            {/* Intensity badge */}
-            <span
-              className="px-2 py-0.5 rounded-full shrink-0"
-              style={{
-                fontSize: "0.45rem",
-                fontFamily: FRICTION_FONTS.heading,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                color: intensityColor(task.intensity),
-                backgroundColor: intensityBg(task.intensity),
-                border: `1px solid ${intensityColor(task.intensity)}33`,
-              }}
-            >
-              {task.intensity}
+            <span className="shrink-0" style={{ fontSize: "0.75rem", color: FRICTION_COLORS.textSecondary, minWidth: 48 }}>
+              {levelWord(task.intensity)}
             </span>
-
-            {/* Duration */}
-            <span style={{ ...dataStyle, fontSize: "0.45rem", color: FRICTION_COLORS.textMuted, minWidth: 32, textAlign: "right" as const }}>
+            <span className="shrink-0" style={{ ...numeric, color: FRICTION_COLORS.textSecondary, minWidth: 64 }}>
               {formatDuration(task.durationMinutes)}
             </span>
-          </motion.div>
+          </div>
         ))}
       </div>
 
-      {/* Reflection box */}
       <div>
-        <div style={{ ...labelStyle, fontSize: "0.5rem", marginBottom: 6, color: FRICTION_COLORS.textSecondary }}>
+        <label htmlFor="friction-reflection" style={{ ...labelStyle, display: "block", marginBottom: 6 }}>
           What went well?
-        </div>
+        </label>
         <textarea
+          id="friction-reflection"
           value={reflectionText}
           onChange={e => onReflectionChange(e.target.value)}
-          placeholder="Reflect on this session..."
+          placeholder="A few words are enough."
           rows={isSquished ? 3 : 4}
-          className="w-full resize-none rounded-lg px-3 py-2 outline-none"
+          className="w-full resize-none px-3 py-2 outline-none"
           style={{
-            fontFamily: FRICTION_FONTS.body,
-            fontSize: "0.65rem",
-            color: FRICTION_COLORS.textPrimary,
+            ...bodyStyle,
+            fontSize: "0.8rem",
             backgroundColor: FRICTION_COLORS.bgElevated,
-            border: `1px solid ${FRICTION_COLORS.borderSubtle}`,
-            lineHeight: 1.6,
+            border: `1px solid ${FRICTION_COLORS.borderDefault}`,
+            borderRadius: 0,
+            transition: "border-color var(--pi-ease-hover)",
           }}
           onFocus={e => { e.target.style.borderColor = FRICTION_COLORS.borderActive; }}
-          onBlur={e => { e.target.style.borderColor = FRICTION_COLORS.borderSubtle; }}
+          onBlur={e => { e.target.style.borderColor = FRICTION_COLORS.borderDefault; }}
         />
-      </div>
-
-      {/* Navigation */}
-      <div className="flex gap-2">
-        <button
-          onClick={onGoHistory}
-          className="flex items-center gap-1.5 cursor-pointer transition-all hover:opacity-80"
-          style={btnPrimaryStyle}
-        >
-          <BarChart3 size={11} />
-          View History
-          <ChevronRight size={10} />
-        </button>
       </div>
     </div>
   );
@@ -313,7 +242,7 @@ function RecapScreen({
 
 
 // ══════════════════════════════════════════════════════════════
-//  SCREEN 2: HISTORY
+//  HISTORY
 // ══════════════════════════════════════════════════════════════
 
 function HistoryScreen({
@@ -322,322 +251,132 @@ function HistoryScreen({
   onDrillDown: (view: DetailView) => void;
   isSquished: boolean;
 }) {
-  return (
-    <div className="px-5 py-5 space-y-5">
-      {/* Summary stat cards */}
-      <div className={isSquished ? "space-y-2" : "grid grid-cols-3 gap-3"}>
-        <StatCard
-          label="Intensity"
-          onClick={() => onDrillDown("intensity")}
-          delay={0}
-        >
-          <MiniDonut />
-        </StatCard>
-        <StatCard
-          label="Sessions"
-          onClick={() => onDrillDown("sessions")}
-          delay={0.08}
-        >
-          <div className="flex items-center gap-2">
-            <span style={{ fontFamily: FRICTION_FONTS.mono, fontSize: isSquished ? "1rem" : "1.3rem", color: FRICTION_COLORS.blue200 }}>
-              {SESSIONS_THIS_MONTH}
-            </span>
-            <span style={{ fontSize: "0.45rem", color: FRICTION_COLORS.textMuted }}>this month</span>
-          </div>
-        </StatCard>
-        <StatCard
-          label="Deep Work"
-          onClick={() => onDrillDown("hours")}
-          delay={0.16}
-        >
-          <div className="flex items-center gap-2">
-            <span style={{ fontFamily: FRICTION_FONTS.mono, fontSize: isSquished ? "1rem" : "1.3rem", color: FRICTION_COLORS.blue200 }}>
-              {TOTAL_DEEP_WORK_HOURS}
-            </span>
-            <span style={{ fontSize: "0.45rem", color: FRICTION_COLORS.textMuted }}>hours</span>
-          </div>
-        </StatCard>
-      </div>
-
-      {/* Recent sessions list */}
-      <div>
-        <div style={{ ...labelStyle, marginBottom: 8 }}>Recent Sessions</div>
-        <div className="space-y-1">
-          {PAST_SESSIONS.map((session, i) => (
-            <motion.div
-              key={session.id}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 + i * 0.04 }}
-              className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-all"
-              style={{
-                backgroundColor: FRICTION_COLORS.bgElevated,
-                border: `1px solid ${FRICTION_COLORS.borderSubtle}`,
-              }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = FRICTION_COLORS.borderActive; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = FRICTION_COLORS.borderSubtle; }}
-            >
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span style={{ fontSize: "0.6rem", color: FRICTION_COLORS.textPrimary }}>{session.dateShort}</span>
-                  <span style={{ fontSize: "0.45rem", color: FRICTION_COLORS.textMuted }}>{session.dayOfWeek}</span>
-                </div>
-              </div>
-              <span style={{ ...dataStyle, fontSize: "0.45rem" }}>{formatDuration(session.durationMinutes)}</span>
-              <span style={{ ...dataStyle, fontSize: "0.45rem", color: FRICTION_COLORS.textMuted }}>{session.taskCount} tasks</span>
-              <span
-                className="px-1.5 py-0.5 rounded-full"
-                style={{
-                  fontSize: "0.4rem",
-                  fontFamily: FRICTION_FONTS.heading,
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                  color: intensityColor(session.intensityLabel),
-                  backgroundColor: intensityBg(session.intensityLabel),
-                }}
-              >
-                {session.intensityLabel}
-              </span>
-            </motion.div>
-          ))}
-        </div>
-      </div>
-
-      {/* Charts row */}
-      <div className={isSquished ? "space-y-4" : "grid grid-cols-2 gap-4"}>
-        {/* Radial clock */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          className="p-4 rounded-lg"
-          style={cardStyle}
-        >
-          <div style={{ ...labelStyle, fontSize: "0.45rem", marginBottom: 8 }}>Peak Hours</div>
-          <RadialClock size={isSquished ? 120 : 160} />
-        </motion.div>
-
-        {/* Weekly bar chart */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.6 }}
-          className="p-4 rounded-lg"
-          style={cardStyle}
-        >
-          <div style={{ ...labelStyle, fontSize: "0.45rem", marginBottom: 8 }}>Weekly Intensity</div>
-          <WeeklyBarChart height={isSquished ? 80 : 110} />
-        </motion.div>
-      </div>
-    </div>
-  );
-}
-
-/** Reusable stat card wrapper */
-function StatCard({
-  label, onClick, delay, children,
-}: {
-  label: string;
-  onClick: () => void;
-  delay: number;
-  children: React.ReactNode;
-}) {
-  return (
-    <motion.button
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay }}
-      onClick={onClick}
-      className="w-full p-3 rounded-lg cursor-pointer transition-all text-left group"
-      style={{
-        ...cardStyle,
-        display: "flex",
-        flexDirection: "column",
-        gap: 6,
-      }}
-      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = FRICTION_COLORS.borderActive; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = FRICTION_COLORS.borderSubtle; }}
-    >
-      <div className="flex items-center justify-between">
-        <span style={{ ...labelStyle, fontSize: "0.45rem" }}>{label}</span>
-        <ChevronRight size={10} style={{ color: FRICTION_COLORS.textMuted, opacity: 0.5 }} />
-      </div>
-      {children}
-    </motion.button>
-  );
-}
-
-
-// ══════════════════════════════════════════════════════════════
-//  SCREEN 3: DETAIL
-// ══════════════════════════════════════════════════════════════
-
-function DetailScreen({
-  activeView, onChangeView, onBack, isSquished,
-}: {
-  activeView: DetailView;
-  onChangeView: (v: DetailView) => void;
-  onBack: () => void;
-  isSquished: boolean;
-}) {
-  const [timeRange, setTimeRange] = useState<"today" | "month" | "year" | "custom">("month");
-  const insight = DETAIL_INSIGHTS[activeView];
+  const totals: { view: DetailView; label: string; value: string; unit: string }[] = [
+    { view: "intensity", label: "Effort", value: `${INTENSITY_DISTRIBUTION.high}%`, unit: "hard" },
+    { view: "sessions", label: "Sessions", value: `${SESSIONS_THIS_MONTH}`, unit: "this month" },
+    { view: "hours", label: "Hours", value: `${TOTAL_DEEP_WORK_HOURS}`, unit: "in total" },
+  ];
 
   return (
-    <div className="px-5 py-5 space-y-4">
-      {/* Back + title */}
-      <div className="flex items-center gap-2">
-        <button
-          onClick={onBack}
-          className="flex items-center gap-1 cursor-pointer transition-all hover:opacity-80"
-          style={{
-            ...labelStyle,
-            fontSize: "0.5rem",
-            color: FRICTION_COLORS.textAccent,
-            background: "none",
-            border: "none",
-            padding: 0,
-          }}
-        >
-          <ChevronLeft size={12} />
-          Back
-        </button>
-        <div className="flex-1" />
-        {/* View switcher pills */}
-        {(["intensity", "sessions", "hours"] as const).map(v => (
+    <div className="px-5 py-5 space-y-8">
+      {/* Totals. Each one opens its Details view. */}
+      <div
+        className="grid grid-cols-3"
+        style={{ borderTop: `1px solid ${FRICTION_COLORS.borderDefault}`, borderBottom: `1px solid ${FRICTION_COLORS.borderDefault}` }}
+      >
+        {totals.map((t, i) => (
           <button
-            key={v}
-            onClick={() => onChangeView(v)}
-            className="px-2 py-0.5 rounded-full cursor-pointer transition-all"
+            key={t.view}
+            type="button"
+            onClick={() => onDrillDown(t.view)}
+            title="Show details"
+            className="text-left cursor-pointer px-3 py-3 bg-transparent hover:bg-[var(--pi-ink-08)]"
             style={{
-              fontSize: "0.42rem",
-              fontFamily: FRICTION_FONTS.heading,
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              backgroundColor: activeView === v ? "rgba(107, 95, 255, 0.12)" : "transparent",
-              border: `1px solid ${activeView === v ? FRICTION_COLORS.borderActive : "transparent"}`,
-              color: activeView === v ? FRICTION_COLORS.blue200 : FRICTION_COLORS.textMuted,
+              border: "none",
+              borderLeft: i === 0 ? "none" : `1px solid ${FRICTION_COLORS.borderDefault}`,
+              color: FRICTION_COLORS.textPrimary,
+              transition: "background-color var(--pi-ease-hover)",
             }}
           >
-            {v}
+            <div style={labelStyle}>{t.label}</div>
+            <div className="mt-1 flex items-baseline gap-1.5 flex-wrap">
+              <span style={{ ...dataStyle, fontSize: isSquished ? "1.1rem" : "1.4rem", fontWeight: 500 }}>{t.value}</span>
+              <span style={{ fontSize: "0.75rem", color: FRICTION_COLORS.textSecondary }}>{t.unit}</span>
+            </div>
           </button>
         ))}
       </div>
 
-      {/* Main content: stacked in squished, side-by-side in expanded */}
-      <div className={isSquished ? "space-y-4" : "flex gap-5"}>
-        {/* Left: time range + chart */}
-        <div className={isSquished ? "" : "flex-1"}>
-          {/* Time range selector */}
-          <div className="flex gap-1 mb-4">
-            {(["today", "month", "year", "custom"] as const).map(r => (
-              <button
-                key={r}
-                onClick={() => setTimeRange(r)}
-                className="px-2.5 py-1 rounded-md cursor-pointer transition-all"
-                style={{
-                  fontSize: "0.45rem",
-                  fontFamily: FRICTION_FONTS.heading,
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                  backgroundColor: timeRange === r ? "rgba(107, 95, 255, 0.1)" : "transparent",
-                  border: `1px solid ${timeRange === r ? FRICTION_COLORS.borderActive : FRICTION_COLORS.borderSubtle}`,
-                  color: timeRange === r ? FRICTION_COLORS.blue200 : FRICTION_COLORS.textMuted,
-                }}
-              >
-                {r === "month" ? "Last Month" : r === "year" ? "This Year" : r === "custom" ? "Custom" : "Today"}
-              </button>
-            ))}
-          </div>
+      <div>
+        <div style={{ ...labelStyle, marginBottom: 6 }}>Recent sessions</div>
+        <div style={{ borderTop: `1px solid ${FRICTION_COLORS.borderDefault}` }}>
+          {PAST_SESSIONS.map(session => (
+            <div key={session.id} className="flex items-center gap-3 py-2" style={ruleRow}>
+              <span style={{ fontSize: "0.8rem", minWidth: 52 }}>{session.dateShort}</span>
+              <span className="flex-1 truncate" style={{ fontSize: "0.75rem", color: FRICTION_COLORS.textMuted }}>
+                {session.dayOfWeek}
+              </span>
+              <span style={{ ...numeric, minWidth: 72 }}>{formatDuration(session.durationMinutes)}</span>
+              <span style={{ ...numeric, color: FRICTION_COLORS.textSecondary, minWidth: 52 }}>{session.taskCount} tasks</span>
+              <span style={{ fontSize: "0.75rem", color: FRICTION_COLORS.textSecondary, minWidth: 48 }}>
+                {levelWord(session.intensityLabel)}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
 
-          {/* Chart area */}
-          <div
-            className="rounded-lg p-4 flex items-center justify-center"
-            style={{
-              ...cardStyle,
-              minHeight: isSquished ? 160 : 220,
-            }}
-          >
-            <AnimatePresence mode="wait">
-              {activeView === "intensity" && (
-                <motion.div key="donut" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}>
-                  <DetailDonut size={isSquished ? 120 : 170} />
-                </motion.div>
-              )}
-              {activeView === "sessions" && (
-                <motion.div key="orb" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}>
-                  <PulsingOrb count={SESSIONS_THIS_MONTH} size={isSquished ? 110 : 150} />
-                </motion.div>
-              )}
-              {activeView === "hours" && (
-                <motion.div key="bars" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="w-full">
-                  <HoursBarChart height={isSquished ? 120 : 170} />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+      <div className={isSquished ? "space-y-8" : "grid grid-cols-2 gap-8"}>
+        <div>
+          <div style={{ ...labelStyle, marginBottom: 8 }}>Effort by weekday</div>
+          <WeekdayBars height={isSquished ? 72 : 96} />
+        </div>
+        <div>
+          <div style={{ ...labelStyle, marginBottom: 8 }}>Effort by hour</div>
+          <HourBars height={isSquished ? 72 : 96} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+// ══════════════════════════════════════════════════════════════
+//  DETAILS
+// ══════════════════════════════════════════════════════════════
+
+function DetailScreen({
+  activeView, onChangeView, isSquished,
+}: {
+  activeView: DetailView;
+  onChangeView: (v: DetailView) => void;
+  isSquished: boolean;
+}) {
+  const insight = DETAIL_INSIGHTS[activeView];
+  const viewLabels: Record<DetailView, string> = { intensity: "Effort", sessions: "Sessions", hours: "Hours" };
+
+  return (
+    <div className="px-5 py-5 space-y-6">
+      <div className="flex items-center gap-4">
+        {(["intensity", "sessions", "hours"] as const).map(v => (
+          <TextTab key={v} selected={activeView === v} onClick={() => onChangeView(v)}>
+            {viewLabels[v]}
+          </TextTab>
+        ))}
+      </div>
+
+      <div className={isSquished ? "space-y-6" : "flex gap-8"}>
+        <div className={isSquished ? "" : "flex-1 min-w-0"}>
+          {activeView === "intensity" && <EffortSplit />}
+          {activeView === "sessions" && (
+            <div className="flex items-baseline gap-2 py-4">
+              <span style={{ ...dataStyle, fontSize: "2.5rem", fontWeight: 500, lineHeight: 1 }}>{SESSIONS_THIS_MONTH}</span>
+              <span style={{ fontSize: "0.85rem", color: FRICTION_COLORS.textSecondary }}>sessions this month</span>
+            </div>
+          )}
+          {activeView === "hours" && <SessionHourBars height={isSquished ? 110 : 160} />}
         </div>
 
-        {/* Right: mini stats + insights + recommendation */}
-        <div className={isSquished ? "" : "w-[280px] shrink-0"}>
-          {/* Mini stat tiles */}
-          <div className="grid grid-cols-2 gap-2 mb-4">
-            {insight.miniStats.map((stat, i) => (
-              <motion.div
-                key={stat.label}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 + i * 0.06 }}
-                className="p-2.5 rounded-lg"
-                style={cardStyle}
-              >
-                <div style={{ ...labelStyle, fontSize: "0.4rem", marginBottom: 3 }}>{stat.label}</div>
-                <div className="flex items-center gap-1">
-                  <span style={{ fontFamily: FRICTION_FONTS.mono, fontSize: "0.75rem", color: FRICTION_COLORS.blue200 }}>
-                    {stat.value}
-                  </span>
-                  {stat.change === "up" && <ArrowUpRight size={10} style={{ color: FRICTION_COLORS.success }} />}
-                  {stat.change === "down" && <ArrowDownRight size={10} style={{ color: FRICTION_COLORS.danger }} />}
-                </div>
-              </motion.div>
+        <div className={isSquished ? "space-y-6" : "w-[300px] shrink-0 space-y-6"}>
+          <dl style={{ margin: 0, borderTop: `1px solid ${FRICTION_COLORS.borderDefault}` }}>
+            {insight.miniStats.map(stat => (
+              <div key={stat.label} className="flex items-baseline justify-between gap-3 py-2" style={ruleRow}>
+                <dt style={{ fontSize: "0.8rem", color: FRICTION_COLORS.textSecondary }}>{stat.label}</dt>
+                <dd style={{ ...numeric, fontSize: "0.8rem", margin: 0 }}>{stat.value}</dd>
+              </div>
             ))}
-          </div>
+          </dl>
 
-          {/* Insight paragraphs */}
-          <div className="space-y-3 mb-4">
+          <div className="space-y-3">
             {insight.paragraphs.map((p, i) => (
-              <motion.p
-                key={i}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.4 + i * 0.15 }}
-                style={{ ...bodyStyle, fontSize: "0.58rem", color: FRICTION_COLORS.textSecondary, lineHeight: 1.65 }}
-              >
-                {p}
-              </motion.p>
+              <p key={i} style={{ ...bodyStyle, fontSize: "0.8rem", margin: 0 }}>{p}</p>
             ))}
           </div>
 
-          {/* Recommendation */}
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.7 }}
-            className="p-3 rounded-lg"
-            style={{
-              backgroundColor: "rgba(107, 95, 255, 0.06)",
-              border: `1px solid ${FRICTION_COLORS.borderDefault}`,
-              borderRadius: 8,
-            }}
-          >
-            <div className="flex items-center gap-1.5 mb-2">
-              <Sun size={11} style={{ color: FRICTION_COLORS.blue300 }} />
-              <span style={{ ...labelStyle, fontSize: "0.42rem", color: FRICTION_COLORS.blue200 }}>Recommendation</span>
-            </div>
-            <p style={{ ...bodyStyle, fontSize: "0.55rem", color: FRICTION_COLORS.textSecondary, lineHeight: 1.6 }}>
-              {insight.recommendation}
-            </p>
-          </motion.div>
+          <div>
+            <div style={{ ...labelStyle, marginBottom: 6 }}>What to try</div>
+            <p style={{ ...bodyStyle, fontSize: "0.8rem", margin: 0 }}>{insight.recommendation}</p>
+          </div>
         </div>
       </div>
     </div>
@@ -646,54 +385,27 @@ function DetailScreen({
 
 
 // ══════════════════════════════════════════════════════════════
-//  BESPOKE SVG CHARTS
+//  CHARTS
 // ══════════════════════════════════════════════════════════════
 
-// ── Mini Donut (for stat card) ──────────────────────────────
-
-function MiniDonut() {
-  const size = 36;
-  const r = 13;
-  const cx = size / 2;
-  const cy = size / 2;
-  const circumference = 2 * Math.PI * r;
-
-  const slices = [
-    { pct: INTENSITY_DISTRIBUTION.high, color: FRICTION_COLORS.red300 },
-    { pct: INTENSITY_DISTRIBUTION.moderate, color: FRICTION_COLORS.violet300 },
-    { pct: INTENSITY_DISTRIBUTION.calm, color: FRICTION_COLORS.blue300 },
+/** Share of hard / medium / light sessions as one stacked bar. */
+function EffortSplit() {
+  const parts = [
+    { pct: INTENSITY_DISTRIBUTION.high, fill: INK_STRONG, label: "Hard" },
+    { pct: INTENSITY_DISTRIBUTION.moderate, fill: INK_MID, label: "Medium" },
+    { pct: INTENSITY_DISTRIBUTION.calm, fill: INK_SOFT, label: "Light" },
   ];
-
-  let offset = 0;
   return (
-    <div className="flex items-center gap-3">
-      <svg width={size} height={size}>
-        {slices.map((slice, i) => {
-          const dashLength = (slice.pct / 100) * circumference;
-          const dashGap = circumference - dashLength;
-          const currentOffset = offset;
-          offset += dashLength;
-          return (
-            <circle
-              key={i}
-              cx={cx} cy={cy} r={r}
-              fill="none"
-              stroke={slice.color}
-              strokeWidth={5}
-              strokeDasharray={`${dashLength} ${dashGap}`}
-              strokeDashoffset={-currentOffset}
-              style={{ opacity: 0.85 }}
-            />
-          );
-        })}
-      </svg>
-      <div className="flex flex-col gap-0.5">
-        {slices.map((slice, i) => (
-          <div key={i} className="flex items-center gap-1.5">
-            <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: slice.color }} />
-            <span style={{ fontSize: "0.4rem", color: FRICTION_COLORS.textMuted }}>
-              {slice.pct}% {["High", "Mod", "Calm"][i]}
-            </span>
+    <div className="py-2">
+      <div className="flex" style={{ height: 12 }}>
+        {parts.map(p => (
+          <div key={p.label} style={{ width: `${p.pct}%`, backgroundColor: p.fill }} />
+        ))}
+      </div>
+      <div className="flex mt-2">
+        {parts.map(p => (
+          <div key={p.label} style={{ width: `${p.pct}%`, fontSize: "0.75rem", fontVariantNumeric: "tabular-nums" }}>
+            {p.pct}% <span style={{ color: FRICTION_COLORS.textSecondary }}>{p.label.toLowerCase()}</span>
           </div>
         ))}
       </div>
@@ -701,335 +413,94 @@ function MiniDonut() {
   );
 }
 
-// ── Detail Donut (larger, for Screen 3) ─────────────────────
-
-function DetailDonut({ size }: { size: number }) {
-  const r = size * 0.35;
-  const cx = size / 2;
-  const cy = size / 2;
-  const circumference = 2 * Math.PI * r;
-
-  const slices = [
-    { pct: INTENSITY_DISTRIBUTION.high, color: FRICTION_COLORS.red300, label: "High" },
-    { pct: INTENSITY_DISTRIBUTION.moderate, color: FRICTION_COLORS.violet300, label: "Moderate" },
-    { pct: INTENSITY_DISTRIBUTION.calm, color: FRICTION_COLORS.blue300, label: "Calm" },
-  ];
-
-  let offset = 0;
+function axisText(x: number, y: number, text: string, key?: string | number) {
   return (
-    <div className="flex flex-col items-center gap-3">
-      <svg width={size} height={size}>
-        {slices.map((slice, i) => {
-          const dashLength = (slice.pct / 100) * circumference;
-          const dashGap = circumference - dashLength;
-          const currentOffset = offset;
-          offset += dashLength;
-          return (
-            <motion.circle
-              key={i}
-              cx={cx} cy={cy} r={r}
-              fill="none"
-              stroke={slice.color}
-              strokeWidth={size * 0.1}
-              strokeDasharray={`${dashLength} ${dashGap}`}
-              initial={{ strokeDashoffset: circumference }}
-              animate={{ strokeDashoffset: -currentOffset }}
-              transition={{ duration: 0.8, delay: i * 0.15, ease: "easeOut" }}
-              strokeLinecap="round"
-              style={{ filter: `drop-shadow(0 0 4px ${slice.color}44)` }}
-            />
-          );
-        })}
-        {/* Center text */}
-        <text
-          x={cx} y={cy - 4}
-          textAnchor="middle"
-          fill={FRICTION_COLORS.textPrimary}
-          style={{ fontFamily: FRICTION_FONTS.mono, fontSize: size * 0.12 }}
-        >
-          {INTENSITY_DISTRIBUTION.high}%
-        </text>
-        <text
-          x={cx} y={cy + 10}
-          textAnchor="middle"
-          fill={FRICTION_COLORS.textMuted}
-          style={{ fontFamily: FRICTION_FONTS.heading, fontSize: size * 0.06, textTransform: "uppercase", letterSpacing: "0.1em" }}
-        >
-          HIGH
-        </text>
-      </svg>
-      <div className="flex gap-4">
-        {slices.map((slice, i) => (
-          <div key={i} className="flex items-center gap-1.5">
-            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: slice.color }} />
-            <span style={{ fontSize: "0.5rem", color: FRICTION_COLORS.textSecondary }}>
-              {slice.pct}% {slice.label}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
+    <text
+      key={key}
+      x={x} y={y}
+      textAnchor="middle"
+      style={{ fill: FRICTION_COLORS.textMuted, fontFamily: FRICTION_FONTS.body, fontSize: 9, fontVariantNumeric: "tabular-nums" }}
+    >
+      {text}
+    </text>
   );
 }
 
-// ── Pulsing Orb (for sessions count) ────────────────────────
-
-function PulsingOrb({ count, size }: { count: number; size: number }) {
+/** Average effort per weekday. */
+function WeekdayBars({ height }: { height: number }) {
+  const n = WEEKLY_INTENSITY.length;
+  const slot = 32;
+  const bar = 20;
+  const width = n * slot;
   return (
-    <div className="flex flex-col items-center gap-3">
-      <div className="relative" style={{ width: size, height: size }}>
-        {/* Outer glow rings */}
-        {[0.8, 0.6, 0.4].map((scale, i) => (
-          <motion.div
-            key={i}
-            className="absolute inset-0 rounded-full"
-            animate={{
-              scale: [scale, scale + 0.15, scale],
-              opacity: [0.08 + i * 0.02, 0.15 + i * 0.03, 0.08 + i * 0.02],
-            }}
-            transition={{
-              duration: 3 + i * 0.5,
-              repeat: Infinity,
-              ease: "easeInOut",
-              delay: i * 0.4,
-            }}
-            style={{
-              background: `radial-gradient(circle, ${FRICTION_COLORS.blue300}33 0%, transparent 70%)`,
-            }}
-          />
-        ))}
-        {/* Core orb */}
-        <motion.div
-          className="absolute rounded-full flex items-center justify-center"
-          animate={{
-            scale: [1, 1.04, 1],
-            boxShadow: [
-              `0 0 20px ${FRICTION_COLORS.blueGlow}, inset 0 0 20px ${FRICTION_COLORS.blueGlow}`,
-              `0 0 35px ${FRICTION_COLORS.blueGlow}, inset 0 0 30px ${FRICTION_COLORS.violetGlow}`,
-              `0 0 20px ${FRICTION_COLORS.blueGlow}, inset 0 0 20px ${FRICTION_COLORS.blueGlow}`,
-            ],
-          }}
-          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-          style={{
-            inset: "15%",
-            background: `radial-gradient(circle at 40% 35%, ${FRICTION_COLORS.blue400} 0%, ${FRICTION_COLORS.bgDeep} 70%)`,
-            border: `1px solid ${FRICTION_COLORS.blue400}44`,
-          }}
-        >
-          <div className="text-center">
-            <div style={{ fontFamily: FRICTION_FONTS.mono, fontSize: size * 0.2, color: FRICTION_COLORS.blue100 }}>
-              {count}
-            </div>
-            <div style={{ fontFamily: FRICTION_FONTS.heading, fontSize: size * 0.07, color: FRICTION_COLORS.textMuted, textTransform: "uppercase", letterSpacing: "0.15em" }}>
-              sessions
-            </div>
-          </div>
-        </motion.div>
-      </div>
-    </div>
+    <svg width="100%" viewBox={`0 0 ${width} ${height + 14}`} style={{ maxWidth: 320, display: "block" }}>
+      <line x1={0} x2={width} y1={height + 0.5} y2={height + 0.5} style={{ stroke: FRICTION_COLORS.borderDefault }} />
+      {WEEKLY_INTENSITY.map((item, i) => {
+        const h = item.value * (height - 4);
+        const x = i * slot + (slot - bar) / 2;
+        return (
+          <g key={item.day}>
+            <rect x={x} y={height - h} width={bar} height={h} style={{ fill: INK_MID }} />
+            {axisText(x + bar / 2, height + 12, item.day)}
+          </g>
+        );
+      })}
+    </svg>
   );
 }
 
-// ── Radial Clock (24h intensity) ────────────────────────────
-
-function RadialClock({ size }: { size: number }) {
-  const cx = size / 2;
-  const cy = size / 2;
-  const innerR = size * 0.18;
-  const maxR = size * 0.44;
-
+/** Average effort for each hour of the day, midnight to midnight. */
+function HourBars({ height }: { height: number }) {
+  const slot = 12;
+  const bar = 8;
+  const width = 24 * slot;
+  const ticks = [0, 6, 12, 18];
+  const tickLabel = (h: number) => (h === 0 ? "12a" : h === 12 ? "12p" : h < 12 ? `${h}a` : `${h - 12}p`);
   return (
-    <div className="flex justify-center">
-      <svg width={size} height={size}>
-        {/* Background circle */}
-        <circle cx={cx} cy={cy} r={maxR + 2} fill="none" stroke={FRICTION_COLORS.borderSubtle} strokeWidth={0.5} />
-        <circle cx={cx} cy={cy} r={innerR} fill="none" stroke={FRICTION_COLORS.borderSubtle} strokeWidth={0.5} />
-
-        {/* Hour segments */}
-        {HOURLY_INTENSITY.map((intensity, hour) => {
-          const angleStart = ((hour - 6) / 24) * 360 - 90; // 6 AM at top
-          const angleEnd = ((hour - 6 + 1) / 24) * 360 - 90;
-          const r1 = innerR;
-          const r2 = innerR + (maxR - innerR) * intensity;
-
-          const a1 = (angleStart * Math.PI) / 180;
-          const a2 = (angleEnd * Math.PI) / 180;
-          const gap = 0.015; // small gap between segments
-
-          const x1Inner = cx + r1 * Math.cos(a1 + gap);
-          const y1Inner = cy + r1 * Math.sin(a1 + gap);
-          const x2Inner = cx + r1 * Math.cos(a2 - gap);
-          const y2Inner = cy + r1 * Math.sin(a2 - gap);
-          const x1Outer = cx + r2 * Math.cos(a1 + gap);
-          const y1Outer = cy + r2 * Math.sin(a1 + gap);
-          const x2Outer = cx + r2 * Math.cos(a2 - gap);
-          const y2Outer = cy + r2 * Math.sin(a2 - gap);
-
-          const largeArc = 0;
-
-          const d = [
-            `M ${x1Inner} ${y1Inner}`,
-            `A ${r1} ${r1} 0 ${largeArc} 1 ${x2Inner} ${y2Inner}`,
-            `L ${x2Outer} ${y2Outer}`,
-            `A ${r2} ${r2} 0 ${largeArc} 0 ${x1Outer} ${y1Outer}`,
-            "Z",
-          ].join(" ");
-
-          // Color: blue → violet → red based on intensity
-          const color = intensity > 0.7
-            ? FRICTION_COLORS.red300
-            : intensity > 0.4
-            ? FRICTION_COLORS.violet300
-            : FRICTION_COLORS.blue400;
-
-          return (
-            <path
-              key={hour}
-              d={d}
-              fill={color}
-              opacity={0.3 + intensity * 0.6}
-              style={{ filter: intensity > 0.7 ? `drop-shadow(0 0 2px ${color}66)` : "none" }}
-            />
-          );
-        })}
-
-        {/* Hour labels — just key hours */}
-        {[6, 9, 12, 15, 18, 21, 0].map(hour => {
-          const angle = ((hour - 6) / 24) * 360 - 90;
-          const labelR = maxR + 10;
-          const x = cx + labelR * Math.cos((angle * Math.PI) / 180);
-          const y = cy + labelR * Math.sin((angle * Math.PI) / 180);
-          const label = hour === 0 ? "12a" : hour <= 12 ? `${hour}${hour < 12 ? "a" : "p"}` : `${hour - 12}p`;
-          return (
-            <text
-              key={hour}
-              x={x} y={y}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fill={FRICTION_COLORS.textMuted}
-              style={{ fontFamily: FRICTION_FONTS.mono, fontSize: size * 0.055 }}
-            >
-              {label}
-            </text>
-          );
-        })}
-      </svg>
-    </div>
+    <svg width="100%" viewBox={`0 0 ${width} ${height + 14}`} style={{ maxWidth: 320, display: "block" }}>
+      <line x1={0} x2={width} y1={height + 0.5} y2={height + 0.5} style={{ stroke: FRICTION_COLORS.borderDefault }} />
+      {HOURLY_INTENSITY.map((v, hour) => {
+        const h = v * (height - 4);
+        return (
+          <rect key={hour} x={hour * slot + (slot - bar) / 2} y={height - h} width={bar} height={h} style={{ fill: INK_MID }} />
+        );
+      })}
+      {ticks.map(h => axisText(h * slot + slot / 2, height + 12, tickLabel(h), h))}
+    </svg>
   );
 }
 
-// ── Weekly Bar Chart ────────────────────────────────────────
-
-function WeeklyBarChart({ height }: { height: number }) {
-  const barWidth = 24;
-  const gap = 8;
-  const totalWidth = WEEKLY_INTENSITY.length * (barWidth + gap) - gap;
-  const maxBarHeight = height - 20;
-
-  return (
-    <div className="flex justify-center">
-      <svg width={totalWidth + 10} height={height + 16} style={{ overflow: "visible" }}>
-        {WEEKLY_INTENSITY.map((item, i) => {
-          const barH = Math.max(2, item.value * maxBarHeight);
-          const x = i * (barWidth + gap) + 5;
-          const y = height - barH;
-
-          const color = item.value > 0.7
-            ? FRICTION_COLORS.red300
-            : item.value > 0.4
-            ? FRICTION_COLORS.violet300
-            : FRICTION_COLORS.blue400;
-
-          return (
-            <g key={item.day}>
-              <motion.rect
-                x={x}
-                width={barWidth}
-                rx={3}
-                fill={color}
-                opacity={item.value === 0 ? 0.1 : 0.7}
-                initial={{ y: height, height: 0 }}
-                animate={{ y, height: barH }}
-                transition={{ duration: 0.6, delay: i * 0.08, ease: "easeOut" }}
-                style={{ filter: item.value > 0.7 ? `drop-shadow(0 0 3px ${color}44)` : "none" }}
-              />
-              <text
-                x={x + barWidth / 2}
-                y={height + 12}
-                textAnchor="middle"
-                fill={FRICTION_COLORS.textMuted}
-                style={{ fontFamily: FRICTION_FONTS.mono, fontSize: "0.45rem" }}
-              >
-                {item.day}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
-    </div>
-  );
-}
-
-// ── Hours Bar Chart (for Detail Screen) ─────────────────────
-
-function HoursBarChart({ height }: { height: number }) {
-  // Show hours per day for the past 8 sessions, grouped by date
+/** Hours per session for the last 7 sessions, oldest first. */
+function SessionHourBars({ height }: { height: number }) {
   const data = PAST_SESSIONS.slice(0, 7).reverse().map(s => ({
     label: s.dateShort,
     hours: +(s.durationMinutes / 60).toFixed(1),
   }));
-
   const maxHours = Math.max(...data.map(d => d.hours));
-  const barWidth = 28;
-  const gap = 10;
-  const totalWidth = data.length * (barWidth + gap) - gap;
-  const maxBarHeight = height - 24;
-
+  const slot = 44;
+  const bar = 28;
+  const top = 14;
+  const width = data.length * slot;
   return (
-    <div className="flex justify-center w-full">
-      <svg width={totalWidth + 10} height={height + 16} style={{ overflow: "visible" }}>
-        {data.map((item, i) => {
-          const barH = Math.max(2, (item.hours / maxHours) * maxBarHeight);
-          const x = i * (barWidth + gap) + 5;
-          const y = height - barH;
-
-          return (
-            <g key={item.label}>
-              <motion.rect
-                x={x}
-                width={barWidth}
-                rx={3}
-                fill={FRICTION_COLORS.blue300}
-                opacity={0.7}
-                initial={{ y: height, height: 0 }}
-                animate={{ y, height: barH }}
-                transition={{ duration: 0.6, delay: i * 0.08, ease: "easeOut" }}
-              />
-              {/* Value on top */}
-              <motion.text
-                x={x + barWidth / 2}
-                textAnchor="middle"
-                fill={FRICTION_COLORS.textSecondary}
-                initial={{ y: height, opacity: 0 }}
-                animate={{ y: y - 4, opacity: 1 }}
-                transition={{ duration: 0.6, delay: i * 0.08 + 0.2 }}
-                style={{ fontFamily: FRICTION_FONTS.mono, fontSize: "0.42rem" }}
-              >
-                {item.hours}h
-              </motion.text>
-              <text
-                x={x + barWidth / 2}
-                y={height + 12}
-                textAnchor="middle"
-                fill={FRICTION_COLORS.textMuted}
-                style={{ fontFamily: FRICTION_FONTS.mono, fontSize: "0.38rem" }}
-              >
-                {item.label}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
-    </div>
+    <svg width="100%" viewBox={`0 0 ${width} ${height + 16}`} style={{ maxWidth: 420, display: "block" }}>
+      <line x1={0} x2={width} y1={height + 0.5} y2={height + 0.5} style={{ stroke: FRICTION_COLORS.borderDefault }} />
+      {data.map((item, i) => {
+        const h = (item.hours / maxHours) * (height - top);
+        const x = i * slot + (slot - bar) / 2;
+        return (
+          <g key={item.label}>
+            <rect x={x} y={height - h} width={bar} height={h} style={{ fill: INK_MID }} />
+            <text
+              x={x + bar / 2} y={height - h - 4}
+              textAnchor="middle"
+              style={{ fill: FRICTION_COLORS.textSecondary, fontFamily: FRICTION_FONTS.body, fontSize: 9, fontVariantNumeric: "tabular-nums" }}
+            >
+              {item.hours} h
+            </text>
+            {axisText(x + bar / 2, height + 12, item.label)}
+          </g>
+        );
+      })}
+    </svg>
   );
 }

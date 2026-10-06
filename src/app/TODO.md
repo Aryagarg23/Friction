@@ -8,7 +8,7 @@ Based on `/src/imports/friction-os-daemon-spec.md` and outstanding bugs.
 - [x] **T0.1** Windows Vista wallpaper — replace gradient background in DesktopOS with Unsplash rolling-hills image
 - [x] **T0.2** Window.tsx — replace macOS traffic-light buttons with Windows-style minimize/maximize/close
 - [x] **T0.3** ProgressiveVignette prop mismatch — DesktopOS passes `intensity` but component expects `biometrics: BiometricState`
-- [ ] **T0.4** Settings Friction toggles — wire to a new FrictionSettingsContext so toggles actually disable effects
+- [x] **T0.4** Settings Friction toggles — FrictionSettingsContext now drives the effects. Sensitivity and Recovery Duration are still not wired.
 
 ## Phase 1: Core Layout — Right-Side Drawer (Spec Part 1)
 - [x] **T1.1** Build `FrictionDrawer` — retractable right-edge drawer (25-30% width), integrated into FrictionOverlay

@@ -1,38 +1,40 @@
 /**
- * DOCK / TASKBAR
- * 
- * Windows-style taskbar at bottom of screen with app launchers,
- * system tray, clock, and running app indicators.
- * Friction lives ONLY in the system tray — not as a launchable app.
+ * TASKBAR
+ *
+ * Windows 11 taskbar: 48px acrylic bar, centered group of start, search and
+ * pinned/running apps; system tray and two-line clock on the right.
+ * Friction lives only in the tray (the diamond drop target), not as an app,
+ * and is the one piece styled in Friction's own --pi-* identity.
+ * Colors come from the --w11-* tokens DesktopOS defines on .w11-root.
  */
 
 import { useState, useEffect, useCallback } from "react";
 import { useWindowManager } from "../../context/WindowManagerContext";
 import { useSession } from "../../context/SessionContext";
-import { motion, AnimatePresence } from "motion/react";
 import { Search, Wifi, Volume2, BatteryFull, ChevronUp } from "lucide-react";
 
 interface AppDef {
   id: string;
   name: string;
   icon: string;
-  color: string;
   size?: { width: number; height: number };
 }
 
 const APPS: AppDef[] = [
-  { id: "vscode", name: "VS Code", icon: "⌨️", color: "#007acc", size: { width: 1000, height: 700 } },
-  { id: "chrome", name: "Chrome", icon: "🌐", color: "#4285f4", size: { width: 1000, height: 700 } },
-  { id: "mail", name: "Mail", icon: "✉️", color: "#0071e3", size: { width: 900, height: 650 } },
-  { id: "slack", name: "Slack", icon: "💬", color: "#611f69", size: { width: 900, height: 650 } },
-  { id: "calendar", name: "Calendar", icon: "📅", color: "#ff3b30", size: { width: 800, height: 600 } },
-  { id: "spotify", name: "Spotify", icon: "🎵", color: "#1db954", size: { width: 950, height: 650 } },
-  { id: "terminal", name: "Terminal", icon: "▶️", color: "#1a1b26", size: { width: 800, height: 500 } },
-  { id: "notes", name: "Notes", icon: "📝", color: "#ffcc02", size: { width: 900, height: 620 } },
-  { id: "finder", name: "Finder", icon: "📁", color: "#5aadfc", size: { width: 900, height: 600 } },
-  { id: "calculator", name: "Calculator", icon: "🔢", color: "#1c1c1c", size: { width: 480, height: 580 } },
-  { id: "settings", name: "Settings", icon: "⚙️", color: "#8e8e93", size: { width: 950, height: 650 } },
+  { id: "vscode", name: "VS Code", icon: "⌨️", size: { width: 1000, height: 700 } },
+  { id: "chrome", name: "Chrome", icon: "🌐", size: { width: 1000, height: 700 } },
+  { id: "mail", name: "Mail", icon: "✉️", size: { width: 900, height: 650 } },
+  { id: "slack", name: "Slack", icon: "💬", size: { width: 900, height: 650 } },
+  { id: "calendar", name: "Calendar", icon: "📅", size: { width: 800, height: 600 } },
+  { id: "spotify", name: "Spotify", icon: "🎵", size: { width: 950, height: 650 } },
+  { id: "terminal", name: "Terminal", icon: "▶️", size: { width: 800, height: 500 } },
+  { id: "notes", name: "Notes", icon: "📝", size: { width: 900, height: 620 } },
+  { id: "finder", name: "Finder", icon: "📁", size: { width: 900, height: 600 } },
+  { id: "calculator", name: "Calculator", icon: "🔢", size: { width: 480, height: 580 } },
+  { id: "settings", name: "Settings", icon: "⚙️", size: { width: 950, height: 650 } },
 ];
+
+const TRAY_ICON = { color: "var(--w11-text)" };
 
 function Clock() {
   const [time, setTime] = useState(new Date());
@@ -46,18 +48,48 @@ function Clock() {
   const h12 = h % 12 || 12;
   const dateStr = time.toLocaleDateString("en-US", { month: "numeric", day: "numeric", year: "numeric" });
   return (
-    <div className="text-right" style={{ fontSize: "0.7rem", color: "#fff", lineHeight: "1.3" }}>
-      <div>{h12}:{m} {ampm}</div>
-      <div style={{ opacity: 0.8 }}>{dateStr}</div>
-    </div>
+    <button
+      className="w11-tb-btn flex flex-col items-end justify-center h-10 px-2 cursor-default"
+      style={{
+        fontSize: "12px",
+        color: "var(--w11-text)",
+        lineHeight: "16px",
+        fontVariantNumeric: "tabular-nums",
+      }}
+    >
+      <span>{h12}:{m} {ampm}</span>
+      <span>{dateStr}</span>
+    </button>
+  );
+}
+
+/** Windows 11 start glyph: four blue squares, lighter at the top-left. */
+function StartGlyph() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden>
+      <defs>
+        <linearGradient id="w11-start" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#4cc2ff" />
+          <stop offset="1" stopColor="#0078d4" />
+        </linearGradient>
+      </defs>
+      <rect x="1" y="1" width="8.5" height="8.5" rx="0.6" fill="url(#w11-start)" />
+      <rect x="10.5" y="1" width="8.5" height="8.5" rx="0.6" fill="url(#w11-start)" />
+      <rect x="1" y="10.5" width="8.5" height="8.5" rx="0.6" fill="url(#w11-start)" />
+      <rect x="10.5" y="10.5" width="8.5" height="8.5" rx="0.6" fill="url(#w11-start)" />
+    </svg>
   );
 }
 
 export function Dock() {
-  const { openWindow, isAppOpen, focusAppWindow } = useWindowManager();
+  const { windows, focusedWindowId, openWindow, isAppOpen, focusAppWindow, minimizeWindow } = useWindowManager();
+  const focusedAppId = windows.find(w => w.id === focusedWindowId)?.appId ?? null;
 
   const handleAppClick = (app: AppDef) => {
-    if (isAppOpen(app.id)) {
+    // Like Windows: clicking the active app's taskbar button minimizes it.
+    if (focusedAppId === app.id && focusedWindowId) {
+      minimizeWindow(focusedWindowId);
+    } else if (isAppOpen(app.id)) {
       focusAppWindow(app.id);
     } else {
       openWindow(app.id, app.name, app.size);
@@ -66,70 +98,73 @@ export function Dock() {
 
   return (
     <div
-      className="absolute bottom-0 left-0 right-0 flex items-center"
+      className="w11-font absolute bottom-0 left-0 right-0 flex items-center select-none"
       style={{
         height: "48px",
         zIndex: 5000,
-        backgroundColor: "rgba(24, 24, 32, 0.85)",
-        backdropFilter: "blur(20px)",
-        borderTop: "1px solid rgba(255, 255, 255, 0.08)",
+        backgroundColor: "var(--w11-taskbar)",
+        backdropFilter: "blur(30px) saturate(1.5)",
+        WebkitBackdropFilter: "blur(30px) saturate(1.5)",
+        borderTop: "1px solid var(--w11-taskbar-border)",
+        color: "var(--w11-text)",
       }}
     >
-      {/* Start / Search area */}
-      <div className="flex items-center h-full gap-1 px-2 shrink-0">
-        {/* Windows logo */}
+      {/* Left balance so the app group sits in the true center */}
+      <div className="flex-1 min-w-0" />
+
+      {/* Centered group: start, search, pinned + running apps */}
+      <div className="flex items-center h-full gap-1 shrink-0">
         <button
-          className="flex items-center justify-center h-9 w-9 rounded hover:bg-white/10 transition-colors cursor-pointer"
+          aria-label="Start"
+          title="Start"
+          className="w11-tb-btn flex items-center justify-center cursor-default"
+          style={{ width: "40px", height: "40px" }}
         >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <rect x="0" y="0" width="7" height="7" fill="#0078D4" rx="1" />
-            <rect x="9" y="0" width="7" height="7" fill="#0078D4" rx="1" />
-            <rect x="0" y="9" width="7" height="7" fill="#0078D4" rx="1" />
-            <rect x="9" y="9" width="7" height="7" fill="#0078D4" rx="1" />
-          </svg>
+          <StartGlyph />
         </button>
-        {/* Search bar */}
         <div
-          className="flex items-center gap-2 px-3 h-8 rounded-full"
+          className="flex items-center gap-2 mx-1"
           style={{
-            backgroundColor: "rgba(255, 255, 255, 0.08)",
-            border: "1px solid rgba(255, 255, 255, 0.06)",
-            width: "200px",
+            height: "32px",
+            width: "180px",
+            padding: "0 12px",
+            borderRadius: "999px",
+            backgroundColor: "var(--w11-search)",
+            border: "1px solid var(--w11-search-border)",
           }}
         >
-          <Search size={13} style={{ color: "rgba(255,255,255,0.5)" }} />
-          <span style={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.4)" }}>Search</span>
+          <Search size={15} strokeWidth={1.75} style={{ color: "var(--w11-text)", transform: "scaleX(-1)" }} />
+          <span style={{ fontSize: "13px", color: "var(--w11-text-2)" }}>Search</span>
         </div>
-      </div>
-
-      {/* Pinned + Running apps */}
-      <div className="flex-1 flex items-center justify-center gap-0.5 h-full px-1">
-        {APPS.map(app => {
-          const running = isAppOpen(app.id);
-          return (
-            <TaskbarApp
-              key={app.id}
-              app={app}
-              isRunning={running}
-              onClick={() => handleAppClick(app)}
-            />
-          );
-        })}
+        {APPS.map(app => (
+          <TaskbarApp
+            key={app.id}
+            app={app}
+            isRunning={isAppOpen(app.id)}
+            isFocused={focusedAppId === app.id}
+            onClick={() => handleAppClick(app)}
+          />
+        ))}
       </div>
 
       {/* System tray */}
-      <div className="flex items-center gap-2 h-full px-3 shrink-0">
-        <button className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer">
-          <ChevronUp size={13} style={{ color: "rgba(255,255,255,0.6)" }} />
+      <div className="flex-1 flex items-center justify-end h-full gap-1 pr-2">
+        <button
+          aria-label="Show hidden icons"
+          className="w11-tb-btn flex items-center justify-center cursor-default"
+          style={{ width: "24px", height: "40px" }}
+        >
+          <ChevronUp size={14} strokeWidth={1.75} style={TRAY_ICON} />
         </button>
-        
-        {/* Friction system tray icon */}
         <FrictionTrayIcon />
-        
-        <Wifi size={14} style={{ color: "rgba(255,255,255,0.7)" }} />
-        <Volume2 size={14} style={{ color: "rgba(255,255,255,0.7)" }} />
-        <BatteryFull size={14} style={{ color: "rgba(255,255,255,0.7)" }} />
-        <div style={{ width: "1px", height: "20px", backgroundColor: "rgba(255,255,255,0.1)" }} />
+        <button
+          aria-label="Network, volume, battery"
+          className="w11-tb-btn flex items-center gap-2.5 h-10 px-2 cursor-default"
+        >
+          <Wifi size={15} strokeWidth={1.75} style={TRAY_ICON} />
+          <Volume2 size={15} strokeWidth={1.75} style={TRAY_ICON} />
+          <BatteryFull size={15} strokeWidth={1.75} style={TRAY_ICON} />
+        </button>
         <Clock />
       </div>
     </div>
@@ -139,67 +174,48 @@ export function Dock() {
 interface TaskbarAppProps {
   app: AppDef;
   isRunning: boolean;
+  isFocused: boolean;
   onClick: () => void;
 }
 
-function TaskbarApp({ app, isRunning, onClick }: TaskbarAppProps) {
+function TaskbarApp({ app, isRunning, isFocused, onClick }: TaskbarAppProps) {
   return (
-    <motion.button
-      whileHover={{ backgroundColor: "rgba(255,255,255,0.1)" }}
-      whileTap={{ scale: 0.95 }}
+    <button
       onClick={onClick}
-      className="relative flex items-center justify-center cursor-pointer rounded-sm"
-      style={{
-        width: "40px",
-        height: "40px",
-      }}
+      title={app.name}
+      aria-label={app.name}
+      data-active={isFocused}
+      className="w11-tb-btn relative flex items-center justify-center cursor-default"
+      style={{ width: "40px", height: "40px" }}
     >
-      <div
-        className="flex items-center justify-center rounded-md"
-        style={{
-          width: "28px",
-          height: "28px",
-          fontSize: "1.1rem",
-        }}
-      >
-        {app.icon}
-      </div>
+      <span style={{ fontSize: "22px", lineHeight: 1 }}>{app.icon}</span>
 
-      {/* Running indicator — bottom bar */}
+      {/* Running indicator: wide blue pill for the focused window, short gray dash otherwise */}
       {isRunning && (
-        <div
-          className="absolute bottom-0.5 rounded-full"
+        <span
+          className="absolute"
           style={{
-            width: "16px",
+            bottom: "1px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            width: isFocused ? "16px" : "6px",
             height: "3px",
-            backgroundColor: "rgba(120, 180, 255, 0.9)",
+            borderRadius: "999px",
+            backgroundColor: isFocused ? "var(--w11-blue)" : "var(--w11-pill-idle)",
+            transition: "width 167ms cubic-bezier(0.1, 0.9, 0.2, 1), background-color 167ms linear",
           }}
         />
       )}
-
-      {/* Tooltip */}
-      <div
-        className="absolute -top-9 px-2.5 py-1.5 rounded text-xs whitespace-nowrap opacity-0 hover:opacity-100 transition-opacity pointer-events-none"
-        style={{
-          backgroundColor: "rgba(30, 30, 40, 0.95)",
-          color: "white",
-          border: "1px solid rgba(255,255,255,0.1)",
-          backdropFilter: "blur(10px)",
-        }}
-      >
-        {app.name}
-      </div>
-    </motion.button>
+    </button>
   );
 }
 
 /**
- * FRICTION SYSTEM TRAY ICON
- * 
- * Unified diamond icon in the system tray.
- * - Breathing glow synced to an 8s inhale/exhale cycle
- * - Accepts drag-and-drop (text/plain) to add tasks to inbox
- * - Hover tooltip: box breathing square + IN/OUT cycling text
+ * FRICTION TRAY ICON
+ *
+ * A small diamond in the tray. Drop text on it to add a task to the inbox.
+ * Hover explains that, since nothing else on screen does. This is Friction,
+ * not Windows, so it keeps the --pi-* ink/paper identity and var(--pi-font).
  */
 function FrictionTrayIcon() {
   const { sessionState, addGeneralTask } = useSession();
@@ -237,216 +253,63 @@ function FrictionTrayIcon() {
     }
   }, [addGeneralTask]);
 
-  // Breathing cycle: 8s total — 4s inhale, 4s exhale
-  const BREATH_DURATION = 8;
-  const boxSize = 56;
+  const message = isDragOver
+    ? "Drop to add a task"
+    : justAdded
+      ? "Added to inbox"
+      : showTooltip
+        ? "Friction. Drag text here to add a task."
+        : null;
+
+  const filled = isDragOver || justAdded;
 
   return (
     <div
-      className="relative"
+      className="relative flex items-center justify-center"
+      style={{ fontFamily: "var(--pi-font)", width: "28px", height: "40px" }}
       onMouseEnter={() => setShowTooltip(true)}
       onMouseLeave={() => { setShowTooltip(false); setIsDragOver(false); }}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      {/* The diamond icon — glow breathes in sync */}
-      <motion.div
-        animate={
-          isDragOver
-            ? { scale: 1.5 }
-            : justAdded
-              ? { scale: [1, 1.4, 1] }
-              : {}
-        }
-        transition={
-          isDragOver ? { duration: 0.2 } : justAdded ? { duration: 0.4 } : {}
-        }
-        className="flex items-center justify-center cursor-pointer rounded-sm"
-        style={{ width: "22px", height: "22px" }}
+      <div
+        className="flex items-center justify-center cursor-pointer"
+        style={{
+          width: "22px",
+          height: "22px",
+          backgroundColor: filled ? "var(--pi-surface)" : "transparent",
+          outline: isDragOver ? "1px solid var(--pi-ink)" : "none",
+          transition: "background-color var(--pi-ease-hover)",
+        }}
       >
-        <motion.svg
-          width="14" height="14" viewBox="0 0 12 12" fill="none"
-          animate={
-            isActive && !isDragOver && !justAdded
-              ? { filter: [
-                  "drop-shadow(0 0 1px rgba(90,143,196,0.2))",
-                  "drop-shadow(0 0 6px rgba(90,143,196,0.7))",
-                  "drop-shadow(0 0 6px rgba(198,85,96,0.6))",
-                  "drop-shadow(0 0 1px rgba(198,85,96,0.2))",
-                  "drop-shadow(0 0 1px rgba(90,143,196,0.2))",
-                ]}
-              : {}
-          }
-          transition={
-            isActive && !isDragOver && !justAdded
-              ? { duration: BREATH_DURATION, repeat: Infinity, ease: "easeInOut" }
-              : {}
-          }
-        >
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
           <path
             d="M6 0.5L11 6L6 11.5L1 6L6 0.5Z"
-            fill={
-              isDragOver ? "rgba(90, 143, 196, 0.9)"
-              : justAdded ? "rgba(90, 143, 196, 0.7)"
-              : isActive ? "#5a8fc4"
-              : "#4a5568"
-            }
-            stroke={
-              isDragOver ? "#8db4e0"
-              : isActive ? "#8db4e0"
-              : "#64748b"
-            }
-            strokeWidth="0.5"
+            fill={isActive || filled ? "var(--pi-ink)" : "transparent"}
+            stroke={isActive || filled ? "var(--pi-ink)" : "var(--pi-ink-45)"}
+            strokeWidth="1"
           />
-        </motion.svg>
-      </motion.div>
+        </svg>
+      </div>
 
-      {/* Hover tooltip: the square IS the tooltip */}
-      <AnimatePresence>
-        {showTooltip && !isDragOver && !justAdded && (
-          <motion.div
-            initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 4 }}
-            transition={{ duration: 0.15 }}
-            className="absolute bottom-full right-0 mb-3 pointer-events-none"
-            style={{ zIndex: 9000 }}
-          >
-            {/* The breathing square — IS the entire tooltip */}
-            <div className="relative" style={{ width: boxSize + 16, height: boxSize + 16, padding: 8 }}>
-             <div className="relative" style={{ width: boxSize, height: boxSize }}>
-              {/* Breathing border: blue → red → blue */}
-              <motion.div
-                className="absolute inset-0 rounded"
-                animate={{ borderColor: [
-                  isActive ? "rgba(90,143,196,0.35)" : "rgba(255,255,255,0.08)",
-                  isActive ? "rgba(198,85,96,0.35)" : "rgba(255,255,255,0.08)",
-                  isActive ? "rgba(90,143,196,0.35)" : "rgba(255,255,255,0.08)",
-                ]}}
-                transition={{ duration: BREATH_DURATION, repeat: Infinity, ease: "easeInOut" }}
-                style={{
-                  border: "1px solid",
-                  backgroundColor: "rgba(10, 15, 26, 0.85)",
-                  backdropFilter: "blur(12px)",
-                  boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
-                }}
-              />
-
-              {/* Diagonal line from top-left to bottom-right */}
-              <svg
-                className="absolute inset-0"
-                width={boxSize} height={boxSize}
-                style={{ pointerEvents: "none" }}
-              >
-                <line
-                  x1="0" y1="0" x2={boxSize} y2={boxSize}
-                  stroke={isActive ? "rgba(90,143,196,0.10)" : "rgba(255,255,255,0.06)"}
-                  strokeWidth="0.5"
-                />
-              </svg>
-
-              {/* Tracing dot — easeInOut breathing + blue→red color shift */}
-              <motion.div
-                animate={{
-                  left: [0, boxSize, boxSize, 0, 0],
-                  top: [0, 0, boxSize, boxSize, 0],
-                  width: [8, 10, 8, 6, 8],
-                  height: [8, 10, 8, 6, 8],
-                  backgroundColor: [
-                    "rgba(90,143,196,1)",
-                    "rgba(120,130,180,1)",
-                    "rgba(198,85,96,1)",
-                    "rgba(160,80,100,1)",
-                    "rgba(90,143,196,1)",
-                  ],
-                  boxShadow: [
-                    "0 0 10px rgba(90,143,196,0.8)",
-                    "0 0 12px rgba(120,130,180,0.7)",
-                    "0 0 10px rgba(198,85,96,0.8)",
-                    "0 0 8px rgba(160,80,100,0.6)",
-                    "0 0 10px rgba(90,143,196,0.8)",
-                  ],
-                }}
-                transition={{
-                  duration: BREATH_DURATION,
-                  repeat: Infinity,
-                  ease: ["easeOut", "easeInOut", "easeOut", "easeInOut"],
-                  times: [0, 0.25, 0.5, 0.75, 1],
-                }}
-                className="absolute rounded-full"
-                style={{
-                  transform: "translate(-50%, -50%)",
-                  zIndex: 2,
-                }}
-              />
-             </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Drag-over tooltip */}
-      <AnimatePresence>
-        {isDragOver && (
-          <motion.div
-            initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 4 }}
-            transition={{ duration: 0.1 }}
-            className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 pointer-events-none whitespace-nowrap"
-            style={{ zIndex: 9100 }}
-          >
-            <div
-              className="px-3 py-1.5 rounded-md"
-              style={{
-                backgroundColor: "rgba(10, 15, 26, 0.96)",
-                border: "1px solid rgba(90, 143, 196, 0.3)",
-                backdropFilter: "blur(12px)",
-                boxShadow: "0 4px 16px rgba(0,0,0,0.5)",
-                fontFamily: "'Space Grotesk', sans-serif",
-                fontSize: "0.55rem",
-                fontWeight: 500,
-                color: "rgba(141, 180, 224, 0.9)",
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-              }}
-            >
-              Drop to inbox
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* "Added!" flash */}
-      <AnimatePresence>
-        {justAdded && (
-          <motion.div
-            initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 4 }}
-            transition={{ duration: 0.15 }}
-            className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 pointer-events-none whitespace-nowrap"
-            style={{ zIndex: 9100 }}
-          >
-            <div
-              className="px-3 py-1.5 rounded-md"
-              style={{
-                backgroundColor: "rgba(10, 15, 26, 0.96)",
-                border: "1px solid rgba(90, 143, 196, 0.25)",
-                fontFamily: "'Space Grotesk', sans-serif",
-                fontSize: "0.55rem",
-                fontWeight: 500,
-                color: "rgba(141, 180, 224, 0.8)",
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-              }}
-            >
-              Added to Inbox
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {message && (
+        <div
+          className="absolute bottom-full right-0 mb-3 pointer-events-none whitespace-nowrap"
+          style={{
+            zIndex: 9100,
+            padding: "6px 10px",
+            backgroundColor: "var(--pi-surface)",
+            border: "1px solid var(--pi-hairline)",
+            color: "var(--pi-ink)",
+            fontFamily: "var(--pi-font)",
+            fontSize: "0.7rem",
+            fontWeight: 400,
+          }}
+        >
+          {message}
+        </div>
+      )}
     </div>
   );
 }

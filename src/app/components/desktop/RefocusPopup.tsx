@@ -1,19 +1,12 @@
 /**
- * REFOCUS POPUP — Low Focus State (<0.30)
+ * REFOCUS POPUP — focus <= 0.30
  *
- * Three glassmorphic option cards appear center-screen:
- *   A) Music Creator
- *   B) Breathing Visualizer
- *   C) Constellation Yoga
- *
- * Selecting one opens the corresponding full-screen exercise overlay.
- * Each exercise is a separate modular file (placeholder for HTML drops).
+ * A small panel with three short exercises. Picking one opens it full
+ * screen. Closing an exercise counts as doing it and lifts focus to 0.55.
  */
 
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Music, Wind, Dumbbell } from "lucide-react";
-import { FRICTION_FONTS, FRICTION_COLORS, blueRedGradient, GRAIN_OVERLAY_STYLE } from "../friction-app/friction-styles";
 import { MusicCreator } from "./exercises/MusicCreator";
 import { BreathingVisualizer } from "./exercises/BreathingVisualizer";
 import { ConstellationYoga } from "./exercises/ConstellationYoga";
@@ -22,28 +15,12 @@ import { useBiometrics } from "../../context/BiometricContext";
 type Exercise = "music" | "breathing" | "constellation" | null;
 
 const OPTIONS = [
-  {
-    key: "music" as const,
-    icon: Music,
-    label: "Music Creator",
-    description: "Create something simple and rhythmic",
-    color: FRICTION_COLORS.blue300,
-  },
-  {
-    key: "breathing" as const,
-    icon: Wind,
-    label: "Breathing",
-    description: "Reground your breathing pattern",
-    color: FRICTION_COLORS.violet300,
-  },
-  {
-    key: "constellation" as const,
-    icon: Dumbbell,
-    label: "Constellation Yoga",
-    description: "Physical stretch & reset",
-    color: FRICTION_COLORS.red300,
-  },
+  { key: "music" as const, label: "Make a beat", description: "Tap out a short rhythm." },
+  { key: "breathing" as const, label: "Breathing", description: "Breathe slowly for a minute." },
+  { key: "constellation" as const, label: "Stretch", description: "Stand up and move a little." },
 ];
+
+const EASE_FOCUS = [0.32, 0.72, 0, 1] as const;
 
 export function RefocusPopup() {
   const [activeExercise, setActiveExercise] = useState<Exercise>(null);
@@ -58,142 +35,54 @@ export function RefocusPopup() {
 
   return (
     <>
-      {/* ── Exercise overlay ── */}
       <AnimatePresence>
-        {activeExercise === "music" && (
-          <MusicCreator onClose={handleExerciseClose} />
-        )}
-        {activeExercise === "breathing" && (
-          <BreathingVisualizer onClose={handleExerciseClose} />
-        )}
-        {activeExercise === "constellation" && (
-          <ConstellationYoga onClose={handleExerciseClose} />
-        )}
+        {activeExercise === "music" && <MusicCreator onClose={handleExerciseClose} />}
+        {activeExercise === "breathing" && <BreathingVisualizer onClose={handleExerciseClose} />}
+        {activeExercise === "constellation" && <ConstellationYoga onClose={handleExerciseClose} />}
       </AnimatePresence>
 
-      {/* ── Option cards (hidden when exercise is active) ── */}
       <AnimatePresence>
         {!activeExercise && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.5 }}
+            transition={{ duration: 0.34, ease: EASE_FOCUS }}
             className="absolute inset-0 flex items-center justify-center"
             style={{
               zIndex: 8500,
-              backgroundColor: "rgba(6, 10, 18, 0.5)",
-              backdropFilter: "blur(6px)",
+              backgroundColor: "color-mix(in srgb, var(--pi-ground) 80%, transparent)",
+              fontFamily: "var(--pi-font)",
             }}
           >
-            <div className="flex flex-col items-center gap-5">
-              {/* Header */}
-              <motion.div
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.15, duration: 0.5 }}
-                className="text-center mb-2"
-              >
-                <div
-                  className="uppercase tracking-[0.25em] mb-2"
-                  style={{
-                    fontSize: "0.5rem",
-                    color: FRICTION_COLORS.textMuted,
-                    fontFamily: FRICTION_FONTS.heading,
-                  }}
-                >
-                  Focus depleted
-                </div>
-                <div
-                  style={{
-                    fontSize: "0.8rem",
-                    color: FRICTION_COLORS.textSecondary,
-                    fontFamily: FRICTION_FONTS.body,
-                  }}
-                >
-                  Choose a refocus exercise
-                </div>
-              </motion.div>
+            <div
+              style={{
+                width: 360,
+                backgroundColor: "var(--pi-surface)",
+                border: "1px solid var(--pi-hairline)",
+                padding: 20,
+              }}
+            >
+              <p style={{ fontSize: "0.85rem", color: "var(--pi-ink)", lineHeight: 1.5, marginBottom: 16 }}>
+                Your focus is low. Pick something short to reset.
+              </p>
 
-              {/* Option cards */}
-              <div className="flex gap-4">
-                {OPTIONS.map((opt, i) => (
-                  <motion.button
+              <div className="flex flex-col">
+                {OPTIONS.map(opt => (
+                  <button
                     key={opt.key}
-                    initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    transition={{
-                      delay: 0.2 + i * 0.1,
-                      duration: 0.45,
-                      ease: [0.16, 1, 0.3, 1],
-                    }}
-                    whileHover={{
-                      scale: 1.04,
-                      borderColor: `${opt.color}50`,
-                      boxShadow: `0 8px 32px rgba(0,0,0,0.4), 0 0 20px ${opt.color}15`,
-                    }}
-                    whileTap={{ scale: 0.97 }}
                     onClick={() => setActiveExercise(opt.key)}
-                    className="flex flex-col items-center gap-3 p-5 rounded-xl cursor-pointer relative overflow-hidden"
+                    className="flex items-baseline justify-between gap-4 text-left cursor-pointer text-[color:var(--pi-ink)] hover:bg-[var(--pi-ink)] hover:text-[color:var(--pi-ground)]"
                     style={{
-                      backgroundColor: "rgba(10, 16, 30, 0.75)",
-                      border: `1px solid ${opt.color}20`,
-                      backdropFilter: "blur(16px)",
-                      minWidth: 140,
+                      padding: "10px 12px",
+                      border: "1px solid var(--pi-ink)",
+                      marginTop: -1,
+                      transition: "background-color var(--pi-ease-hover), color var(--pi-ease-hover)",
                     }}
                   >
-                    {/* Grain */}
-                    <div
-                      style={{
-                        ...GRAIN_OVERLAY_STYLE,
-                        opacity: 0.3,
-                        borderRadius: "12px",
-                      }}
-                    />
-
-                    {/* Subtle gradient */}
-                    <div
-                      className="absolute inset-0 pointer-events-none rounded-xl"
-                      style={{ background: blueRedGradient(0.06) }}
-                    />
-
-                    {/* Icon circle */}
-                    <div
-                      className="relative flex items-center justify-center rounded-full"
-                      style={{
-                        width: 48,
-                        height: 48,
-                        backgroundColor: `${opt.color}10`,
-                        border: `1.5px solid ${opt.color}30`,
-                      }}
-                    >
-                      <opt.icon size={22} style={{ color: opt.color }} />
-                    </div>
-
-                    {/* Label */}
-                    <div className="relative text-center">
-                      <div
-                        style={{
-                          fontSize: "0.7rem",
-                          color: FRICTION_COLORS.textPrimary,
-                          fontFamily: FRICTION_FONTS.heading,
-                          marginBottom: 4,
-                        }}
-                      >
-                        {opt.label}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: "0.5rem",
-                          color: FRICTION_COLORS.textMuted,
-                          fontFamily: FRICTION_FONTS.body,
-                          maxWidth: 120,
-                        }}
-                      >
-                        {opt.description}
-                      </div>
-                    </div>
-                  </motion.button>
+                    <span style={{ fontSize: "0.8rem", fontWeight: 500 }}>{opt.label}</span>
+                    <span style={{ fontSize: "0.7rem", opacity: 0.6 }}>{opt.description}</span>
+                  </button>
                 ))}
               </div>
             </div>

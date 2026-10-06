@@ -31,120 +31,217 @@ interface Email {
 const EMAILS: Email[] = [
   {
     id: 1,
-    from: "Arya Garg",
-    fromEmail: "arya@frictionlabs.dev",
-    to: "me",
-    subject: "Re: Infinite render loop — KeyboardContext fix",
-    time: "3:30 AM",
-    preview: "The useCallback + equality guard fix is deployed. All four setters stable now...",
-    body: `Hey team,
-
-The useCallback + equality guard fix is deployed. All four setters in KeyboardContext are now stable refs — setResistance, setRGBMode, setBinaural, setTemperature.
-
-The root cause: each setter was an inline arrow function in the provider, creating new refs on every render. FrictionKeyboard's useEffect had them in its dependency array, so every state update → new refs → effect fires → more state updates → infinite loop.
-
-Pattern to remember: ALWAYS wrap context setters in useCallback with [] deps when they'll be used in consumer useEffects.
-
-Also wired up the temperature field — derives from fatigue (0 to +4°C), shows thermometer readout and heat-haze glow at keyboard edges.
-
-— Arya`,
-    unread: true,
-    starred: true,
-    labels: ["Engineering"],
-    hasAttachment: false,
-    folder: "inbox",
-  },
-  {
-    id: 2,
-    from: "FigMake Agent",
-    fromEmail: "agent@figma.com",
-    to: "friction-team",
-    subject: "Submission Reminder — 12 hours remaining",
-    time: "9:00 AM",
-    preview: "Your FigBuild 2026 submission is due Monday March 9th @ 11:00 PM EST...",
-    body: `Hi Friction Labs team,
-
-This is a reminder that your FigBuild 2026 submission is due:
-
-Deadline: Monday, March 9th @ 11:00 PM EST
-
-Required deliverables:
-1. Demo video (3-5 minutes)
-2. Figma Slides with embedded Figma Make prototypes
-3. All team members verified with school-issued email
-
-Judges from Meta, Microsoft, Spotify, and Google will evaluate:
-- Problem-Solution Fit
-- Innovation & Creativity
-- Design Execution & UX
-- Craft & Intentionality
-- Storytelling & Presentation
-
-Good luck!
-— FigMake Agent`,
-    unread: true,
-    starred: false,
-    labels: [],
-    hasAttachment: false,
-    folder: "inbox",
-  },
-  {
-    id: 3,
     from: "Miami Celentana",
     fromEmail: "miami@frictionlabs.dev",
-    to: "me",
-    subject: "Brutalist Tactile direction — final aesthetic decisions",
-    time: "Yesterday",
-    preview: "Locked in the design language. Dark matte black, amber/orange glowing text...",
-    body: `Hey,
+    to: "friction-team",
+    subject: "storyboard + captions v2",
+    time: "1:30 PM",
+    preview: "storyboard v2 attached —> 8 beats, text reveals, captions. tagline still missing...",
+    body: `hi team
 
-Locked in the Brutalist Tactile design language:
+storyboard v2 attached
 
-- Dark matte black backgrounds (#0a0a0a → #1a1a1a)
-- Amber/orange glowing text (var(--friction-accent-amber))
-- JetBrains Mono everywhere
-- Dune-inspired (Haley's Bene Gesserit reference sealed it)
-- Seven signature overlay effects driven by biometric thresholds
+STORYBOARD
+1. intro —> just gradient movement
+2. gradient to color zoom
+3. pop up keyboard, pop up UX/UI over gradient bg
+4. login and begin work
+5. increase of stress + loss of focus, toggles moving
+6. keyboard + UX/UI blur, security lock pops up
+7. timer counting down from 37 secs (20 secs on the short cut)
+8. Text on page: Friction --> "insert tagline here"
 
-The horizontal split layout is exactly right — left side Neural Interface Simulator with biometric sliders, persona cards, draggable timeline, and keyboard; right side fake OS with the six draggable app windows launchable from the dock.
+TEXT REVEALS
+- "Breathe in, breathe out. notice where your attention lies right now."
+- "the elusive, rewarding 'flow state' greets us and departs with ease"
+- "the balance between deep work and burn out has kept motivated individuals on their toes for ages"
+- final —> "friction is paving the way for people to own their focus and turn it into a tool they can bend to their will"
 
-Re: the dock z-index fix — great call making it stay above fullscreen windows. That was driving me crazy during testing.
+CAPTIONS
+- "the product lies dormant until the level of focus has reached unproductive levels. it's time for friction to step in."
+- "but it never feels like a punishment, each activity is built to bring a sense of calm and self care."
+- "perfection is not the goal"
+- "the work needs to get done regardless. friction is the guiding hand to get work done faster, with more intention"
 
-— Miami`,
-    unread: false,
+questions
+- tagline??
+- ink on paper for review screen, gradient for intro —> ok?
+- arya —> can the build blur at beat 6?
+- haley —> captions too long for 37 secs?
+
+mc`,
+    unread: true,
     starred: false,
     labels: ["Design"],
     hasAttachment: true,
     folder: "inbox",
   },
   {
+    id: 2,
+    from: "Fig Build 2026",
+    fromEmail: "figbuild@figma.com",
+    to: "friction-team",
+    subject: "Reminder: Fig Build 2026 submissions close tonight at 11:00 PM EST",
+    time: "9:00 AM",
+    preview: "Submissions close Monday, March 9th @ 11:00 PM EST. Use the self-check rubric before you submit...",
+    body: `Hi builders,
+
+A reminder that Fig Build 2026 submissions close:
+
+Monday, March 9th @ 11:00 PM EST
+
+Before you submit, run through the self-check rubric.
+
+Must-haves
+1. The Target: who is it for, and in what context?
+2. The Sense: a specific, previously unmeasurable sensory experience. (Humans have 22–33 distinct senses.)
+3. The Goal: the wellness or behavior change you are after.
+4. The Mechanics: 3 concrete use cases or stories.
+5. The Interface: data collection, visualization, and sensory perception or enhancement.
+6. The Safeguards: privacy, consent, misuse, information overload, and emergency protocols.
+
+Judging criteria
+- Problem-Solution Fit
+- Innovation & Creativity
+- Design Execution & UX ("system hygiene")
+- Craft & Intentionality
+- Storytelling & Presentation
+
+This year's judges come from Meta, Microsoft, Spotify, and Google.
+
+Good luck, and leave yourself time to upload.
+
+The Fig Build team`,
+    unread: true,
+    starred: true,
+    labels: ["Fig Build"],
+    hasAttachment: false,
+    folder: "inbox",
+  },
+  {
+    id: 3,
+    from: "FigMake Agent",
+    fromEmail: "agent@figma.com",
+    to: "Arya Garg",
+    subject: "Build log: Mon Mar 9, 12:40 to 3:30 AM",
+    time: "3:30 AM",
+    preview: "Summary: three bugs fixed, no open blockers. 1. Blank screen (dropped InsightCard import)...",
+    body: `Build log
+Session: Monday, March 9, 12:40 AM to 3:30 AM
+
+Summary
+Three bugs fixed. No open blockers.
+
+1. Blank screen
+- Cause: MirrorPage.tsx referenced InsightCard after I dropped its import while regenerating a large file.
+- Symptom: the error pointed to line 195 in a 153-line file. That mismatch meant a stale cache, not the current source.
+- Fix: restored the import and cleared the cache.
+- Prevention: after any regeneration, I diff the import block against the previous version.
+
+2. Render loop in FrictionKeyboard
+- Cause: the effect that syncs biometrics to keyboard state listed setResistance and setRGBMode as dependencies. Both were recreated on every render in KeyboardContext.
+- Fix: wrapped both setters in useCallback with empty dependency arrays and added equality guards.
+- Result: the loop no longer reproduces.
+
+3. Window stacking
+- Cause: WindowManagerContext tracked z-index with nested setState calls, which cascaded re-renders while dragging.
+- Fix (by you): z-index tracking moved to a ref.
+
+Data handling
+- Biometric signals are simulated and held in memory in the browser. No network calls carry them.
+- The kill switch and Data Burn exist in the concept and the deck. They are not implemented in the prototype.
+
+Every change above is logged in src/app/CHANGELOG.md with backtrack instructions.
+
+FigMake Agent`,
+    unread: false,
+    starred: true,
+    labels: ["Engineering"],
+    hasAttachment: false,
+    folder: "inbox",
+  },
+  {
     id: 4,
+    from: "Arya Garg",
+    fromEmail: "arya@frictionlabs.dev",
+    to: "Haley Potter, Miami Celentana",
+    subject: "Re: the Extended Mind paper (is friction part of your brain??)",
+    time: "Mar 8",
+    preview: "I read it properly. Short version: Clark and Chalmers argue a tool used seamlessly becomes part of the cognitive system...",
+    body: `Haley,
+
+I read it properly. Short version of the paper: Andy Clark and David Chalmers argue that a tool used seamlessly becomes part of the cognitive system. Their example is Otto, who has Alzheimer's and keeps addresses in a notebook, compared with someone remembering the address from memory. If the notebook plays the same role, they say it is part of Otto's mind.
+
+Their criteria, all four:
+1. Constantly accessible
+2. Automatically trusted
+3. Easily retrievable
+4. Consciously endorsed at some point
+
+GPS, phone contacts, Google search and collaborative docs all pass.
+
+Where I land:
+
+- I dont necessarily agree with what the paper says here. I do understand that previous "extensions of the mind" were cold storage of information. But I diasgree with them insinuating that this is a boundray which should not be crossed. More to think here.
+
+- Friction is not cold storage. It observes you while you think. If it meets the four criteria, it is part of your mind by their definition, which makes the safeguards the product and not a slide at the end.
+
+- So: data stays local to the physical product, the physical kill switch returns it to a dumb desk, and the weekly Data Burn dissolves everything. I'd put this line in the deck as written: "friction users opt into protected brain observation with all data stored locally to the physical product".
+
+Still open: "automatically trusted" is the criterion I'm least comfortable with. A tool you trust without checking is exactly the kind that can extract instead of protect. Same question we kept hitting on Clay.
+
+I need to read this part again. also still need to read The Algorithmic Funnel: and beyond. takinng a cognitive pause
+
+Arya
+
+> On Sat, Mar 7, Haley Potter wrote:
+> wait so friction would be part of your MIND?? that's either the best or the scariest thing for the safeguards section`,
+    unread: true,
+    starred: true,
+    labels: ["Research"],
+    hasAttachment: false,
+    folder: "inbox",
+  },
+  {
+    id: 5,
     from: "Haley Potter",
     fromEmail: "haley@frictionlabs.dev",
     to: "friction-team",
-    subject: "Product doc v4 — LC-NE research + Van Dongen effect",
-    time: "Yesterday",
-    preview: "Updated friction-product-doc-4.md with the neuroscience backbone...",
-    body: `Team,
+    subject: "product doc v4!!! (sources at the bottom this time)",
+    time: "Mar 8",
+    preview: "hiii team, ok product doc v4 is up. sources are at the bottom this time so arya can stop asking lol...",
+    body: `hiii team
 
-Updated friction-product-doc-4.md with the full neuroscience backbone:
+ok product doc v4 is up (attached). sources are at the bottom this time so arya can stop asking lol
 
-1. Wiehler et al. 2022 — glutamate buildup in lateral prefrontal cortex after sustained cognitive work. This is why our taper triggers at ~90 minutes.
+WHAT CHANGED
+- pitch line is in: "We need to... Enable the flow state through... Physical and Digital means"
+- the senses / tracks / helps section:
+  it senses: chemicals in the brain related to the flow state
+  it tracks: focus level you have while completing a goal
+  it helps you: stay deeply focused by focusing your attention through task to-do lists and helps you refocus through summaries of your work that decrease the friction of refocusing
+- haptics: "uses haptic responses which prevents burn out which decreases working time which improves work life balance" (yes it's a run-on, it's MY run-on)
+- archetypes: Claudia (Productivitymaxxer), Perplexous ("Burnout"phobic), Charlie GPT (Life-Balance Royalty, now a solo lawyer in the demo)
 
-2. LC-NE system (locus coeruleus-norepinephrine) — tonic vs phasic modes map to exploitation vs exploration. When effort exceeds reward, people shift from focused exploitation to distracted exploration. We detect this transition.
+AUDIENCES (the four we looked at)
+1. PhD students/postdocs in computational fields: ~100k globally, the "context recovery tax", Jupyter + LaTeX people
+2. senior IC / staff+ engineers: attention residue
+3. freelance writers + creators: ~2M, "muse detector", Substack/Upwork/Gumroad
+4. solo trial lawyers: ~150k in the US, Clio communities, "focus prosthetic"
 
-3. Van Dongen effect — subjective fatigue perception plateaus while objective performance continues to decline. This is Charlie's persona story: he doesn't FEEL tired, but he IS making errors. That's why we need the Hard Intercept.
+idk which one we lead with. leaning freelancers bc storytelling?? judges are Meta/Microsoft/Spotify/Google and they put a strong emphasis on storytelling
 
-4. Default Mode Network — activity is lowered during flow states (Ulrich et al., 2014). We track this indirectly through focus + engagement metrics.
+SOURCES
+- Frontiers: "The Neuroscience of the Flow State: Involvement of the Locus Coeruleus Norepinephrine System" (tonic vs phasic!!)
+- Penn Medicine: "Neuroscientists identify brain mechanism that drives focus" (the "traffic controllers" one)
+- Frontiers: "The impacts of mind-wandering on flow"
+- ScienceDirect: the task redirection paper
+- Clark & Chalmers, The Extended Mind (arya has notes + opinions)
 
-Three concrete use cases matching the rubric:
-- Claudia (freelancer) → The Taper
-- Perplexous (PhD student) → Digital Moss / Flow Preservation
-- Charlie (solo lawyer) → The Hard Intercept
+lmk what's missing!!!
+haley
 
-— Haley
-
-P.S. HALEY'S FREAKOFF CORNER: the Bene Gesserit controlled their own metabolism. We're basically building that but for cognitive load. 🪱`,
+p.s. HALEY'S FREAKOFF CORNER: the Bene Gesserit could control their metabolism speed/sleep. we're kind of doing that but for focus. FIRE aesthetic 🔥`,
     unread: false,
     starred: true,
     labels: ["Research"],
@@ -152,56 +249,52 @@ P.S. HALEY'S FREAKOFF CORNER: the Bene Gesserit controlled their own metabolism.
     folder: "inbox",
   },
   {
-    id: 5,
-    from: "FigMake Agent",
-    fromEmail: "agent@figma.com",
-    to: "friction-team",
-    subject: "Build session recap — architecture & lessons learned",
-    time: "3:15 AM",
-    preview: "Current architecture: 5 context providers, 13 fake apps, 3 persona profiles...",
-    body: `Build session recap:
+    id: 6,
+    from: "Figma",
+    fromEmail: "no-reply@figma.com",
+    to: "me",
+    subject: "Miami Celentana and 1 other commented in Friction: Demo Storyboard",
+    time: "Mar 8",
+    preview: "Miami Celentana: \"ink —> review screen, gradient —> intro?\" Haley Potter: \"BOTH\"...",
+    body: `New comments in Friction: Demo Storyboard
 
-Current architecture:
-- 5 context providers: Biometric, Keyboard, Persona, Session, WindowManager
-- 13 fake apps (VSCode, Chrome, Mail, Calendar, Slack, Spotify, Finder, Notes, Calculator, Terminal, Settings, Friction, FrictionOverlay)
-- 3 persona profiles with simulation scripts + timeline snapshots
-- 7 overlay effects in the Friction sidebar
-- Keyboard lethargy system: ghost keys, label blur, board sag, temperature glow
+Miami Celentana on "Frame 6: blur + security lock"
+"ink —> review screen, gradient —> intro? both?"
 
-Key bugs fixed tonight:
-1. Blank screen: Missing InsightCard import in MirrorPage (my fault — dropped during large file rewrite)
-2. Infinite loop: Unstable context setter refs in KeyboardContext → wrapped in useCallback + equality guards
-3. Z-index wars: WindowManagerContext switched from setState to useRef for tracking
+Haley Potter replied
+"BOTH. ink for the Empathy Mirror, the afternoon burnout as heavy gaussian blur on paper texture"
 
-Outstanding items:
-- 47 unused shadcn ui/ components (won't fix before deadline)
-- Settings app Friction toggles not wired to overlay context
-- pages/ directory should consolidate into components/apps/
+Arya Garg on "Frame 7: timer"
+"Matching the 37 second countdown in the build. Confirming the short cut is 20."
 
-Lesson: never regenerate a large file without checking all imports. The stale cache made debugging extra confusing — error line 195 in a 153-line file.
-
-— FigMake Agent`,
+Open in Figma`,
     unread: false,
-    starred: true,
-    labels: ["Engineering"],
+    starred: false,
+    labels: ["Design"],
     hasAttachment: false,
     folder: "inbox",
   },
   {
-    id: 6,
+    id: 7,
     from: "Notion",
     fromEmail: "notify@notion.so",
     to: "me",
-    subject: "3 updates in Friction Labs Workspace",
-    time: "Mar 8",
-    preview: "Haley Potter edited 'Product Doc v4', Miami Celentana commented on 'Design System'...",
-    body: `3 new updates in your Friction Labs workspace:
+    subject: "4 updates in Friction Labs",
+    time: "Mar 7",
+    preview: "Haley Potter edited \"Audience research\", Arya Garg created \"Reading: The Extended Mind\"...",
+    body: `4 updates in Friction Labs
 
-1. Haley Potter edited "Product Doc v4" (LC-NE research section)
-2. Miami Celentana commented on "Brutalist Tactile Design System"
-3. New page created: "FigBuild 2026 Submission Checklist"
+Haley Potter edited "Audience research"
+  Added: solo trial lawyers, ~150k in the US, Clio communities
 
-View in Notion →`,
+Arya Garg created "Reading: The Extended Mind (Clark & Chalmers)"
+
+Miami Celentana edited "Mc brain dump"
+  Added: dream tracking —> dream enhancing —> be productive in your sleep TOO!
+
+Arya Garg created "FIGBUILD 2026 SELF-CHECK RUBRIC"
+
+Open Notion`,
     unread: false,
     starred: false,
     labels: [],
@@ -214,6 +307,7 @@ const LABEL_COLORS: Record<string, string> = {
   Engineering: "#4285f4",
   Design: "#ea4335",
   Research: "#34a853",
+  "Fig Build": "#a142f4",
   GitHub: "#24292f",
 };
 

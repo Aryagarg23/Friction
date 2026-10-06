@@ -1,349 +1,209 @@
 /**
- * DIGITAL MOSS → "NEURAL RESIDUE" — Sub-State 5: The Return
+ * DIGITAL MOSS — after an interruption
  *
- * Canvas-based overlay that creeps from the bezels of the screen when
- * returning from interruption. Reskinned from green "moss" to the
- * Calm Authority blue→violet→red palette so it matches all other
- * Friction OS-side effects.
+ * When the user comes back, moss creeps in from the screen edges and leaves
+ * the middle clear for one card: what they were working on, in which app,
+ * what comes next, and the words they were using. Two ways out: the
+ * "Back to work" button (or Enter / Esc), or sweeping the mouse across the
+ * moss, which wipes it where the cursor passes.
  *
- * Keywords from the user's last context float in the residue.
- * Mouse swipe to brush away — embodied cognition mechanic.
+ * The moss is a fixed halftone grid, not random particles: each cell's reach
+ * comes from its distance to the nearest edge plus smooth noise, so the band
+ * has one ragged inner edge and grows inward in order. Nothing jitters once
+ * it has grown. Canvas cannot read CSS variables, so colors and font are read
+ * from the computed --pi-* values each frame to follow light and dark.
  *
- * SessionContext API unchanged (mossActive / clearMoss / etc.)
+ * SessionContext API unchanged (mossActive / mossKeywords / clearMoss).
  */
 
 import { useRef, useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { FRICTION_COLORS, FRICTION_FONTS } from "../friction-app/friction-styles";
+import { useSession } from "../../context/SessionContext";
+import { useWindowManager } from "../../context/WindowManagerContext";
 
 interface Props {
+  /** Extra words the user was using (e.g. variable names). Shown as chips. */
   keywords: string[];
-  taskContext?: string;
   onClear: () => void;
 }
 
-interface ResidueParticle {
+const CELL = 12;          // grid pitch in px
+const REACH = 0.34;       // how far in the band reaches, as a share of half the short side
+const RAGGED = 0.14;      // how much noise moves the inner edge
+const GROW_MS = 1400;     // time for the moss to reach its full extent
+const DONE_AT = 0.55;     // share of moss wiped before it lets go
+
+interface Cell {
   x: number;
   y: number;
-  size: number;
-  opacity: number;
-  growth: number;
-  maxSize: number;
-  edge: "top" | "bottom" | "left" | "right";
-  depth: number; // how far from edge (0-1)
+  /** 0 at the edge, 1 at the center */
+  depth: number;
+  /** 0..1 how thick the moss is here */
+  density: number;
   cleared: boolean;
-  hue: number;    // 210-280 (blue→violet range)
-  sat: number;    // saturation variance
 }
 
-interface KeywordFloat {
-  text: string;
-  x: number;
-  y: number;
-  opacity: number;
-  targetOpacity: number;
-  cleared: boolean;
-  snapX: number;
-  snapY: number;
+function readTheme() {
+  const css = getComputedStyle(document.documentElement);
+  return {
+    ink: css.getPropertyValue("--pi-ink").trim() || "#282215",
+    font: css.getPropertyValue("--pi-font").trim() || "sans-serif",
+  };
 }
 
-// Parse hex color to r,g,b tuple
-function hexToRgb(hex: string): [number, number, number] {
-  const h = hex.replace("#", "");
-  return [
-    parseInt(h.slice(0, 2), 16),
-    parseInt(h.slice(2, 4), 16),
-    parseInt(h.slice(4, 6), 16),
-  ];
+/** Deterministic value noise in [-1, 1], two octaves, so the edge is the same every time. */
+function hash(ix: number, iy: number) {
+  const s = Math.sin(ix * 127.1 + iy * 311.7) * 43758.5453;
+  return (s - Math.floor(s)) * 2 - 1;
+}
+function smooth(t: number) {
+  return t * t * (3 - 2 * t);
+}
+function valueNoise(x: number, y: number) {
+  const ix = Math.floor(x), iy = Math.floor(y);
+  const fx = smooth(x - ix), fy = smooth(y - iy);
+  const a = hash(ix, iy), b = hash(ix + 1, iy);
+  const c = hash(ix, iy + 1), d = hash(ix + 1, iy + 1);
+  return (a + (b - a) * fx) * (1 - fy) + (c + (d - c) * fx) * fy;
+}
+function noise(x: number, y: number) {
+  return valueNoise(x / 140, y / 140) * 0.7 + valueNoise(x / 45, y / 45) * 0.3;
 }
 
-const BLUE_RGB = hexToRgb("#8B7FFF");    // FRICTION_COLORS.blue300 (electric violet)
-const VIOLET_RGB = hexToRgb("#7c4da0");  // FRICTION_COLORS.violet400
-const RED_RGB = hexToRgb("#FF5F8F");     // FRICTION_COLORS.red300 (hot rose)
-
-export function DigitalMoss({ keywords, taskContext, onClear }: Props) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const particlesRef = useRef<ResidueParticle[]>([]);
-  const keywordsRef = useRef<KeywordFloat[]>([]);
-  const mouseRef = useRef({ x: -100, y: -100, velocity: 0, totalCleared: 0 });
-  const animFrameRef = useRef<number>(0);
-  const [isClearing, setIsClearing] = useState(false);
-  const [clearProgress, setClearProgress] = useState(0);
-  const growthRef = useRef(0);
-  const timeRef = useRef(0);
-  const lastProgressRef = useRef(0);
-
-  // Initialize particles
-  const initParticles = useCallback((w: number, h: number) => {
-    const particles: ResidueParticle[] = [];
-    const count = 600;
-
-    for (let i = 0; i < count; i++) {
-      const edge = (["top", "bottom", "left", "right"] as const)[Math.floor(Math.random() * 4)];
-      let x = 0, y = 0;
-      const depth = Math.random();
-
-      switch (edge) {
-        case "top":
-          x = Math.random() * w;
-          y = depth * h * 0.4;
-          break;
-        case "bottom":
-          x = Math.random() * w;
-          y = h - depth * h * 0.4;
-          break;
-        case "left":
-          x = depth * w * 0.35;
-          y = Math.random() * h;
-          break;
-        case "right":
-          x = w - depth * w * 0.35;
-          y = Math.random() * h;
-          break;
-      }
-
-      // Add organic jitter
-      x += (Math.random() - 0.5) * 40;
-      y += (Math.random() - 0.5) * 40;
-
-      // Deeper particles trend redder, edge particles stay bluer
-      const baseHue = 210 + depth * 60 + Math.random() * 20; // 210-290
-      const sat = 40 + Math.random() * 30;
-
-      particles.push({
-        x, y,
-        size: 0,
-        opacity: 0,
-        growth: 0.3 + Math.random() * 0.7,
-        maxSize: 8 + Math.random() * 24 + (1 - depth) * 20,
-        edge,
-        depth,
-        cleared: false,
-        hue: baseHue,
-        sat,
-      });
+function buildCells(w: number, h: number): Cell[] {
+  const half = Math.min(w, h) / 2;
+  const cells: Cell[] = [];
+  for (let y = CELL / 2; y < h; y += CELL) {
+    for (let x = CELL / 2; x < w; x += CELL) {
+      const edgeDist = Math.min(x, y, w - x, h - y);
+      const depth = edgeDist / half;
+      const reach = REACH + RAGGED * noise(x, y);
+      const density = Math.max(0, Math.min(1, (reach - depth) / 0.16));
+      if (density > 0.05) cells.push({ x, y, depth, density, cleared: false });
     }
+  }
+  return cells;
+}
 
-    particlesRef.current = particles;
+export function DigitalMoss({ keywords, onClear }: Props) {
+  const { tasks } = useSession();
+  const { windows, focusedWindowId } = useWindowManager();
 
-    // Position keywords
-    const kws: KeywordFloat[] = keywords.slice(0, 8).map((text, i) => {
-      const angle = (i / keywords.length) * Math.PI * 2 + Math.random() * 0.5;
-      const radius = 0.15 + Math.random() * 0.2;
-      return {
-        text,
-        x: w * 0.5 + Math.cos(angle) * w * radius,
-        y: h * 0.5 + Math.sin(angle) * h * radius,
-        opacity: 0,
-        targetOpacity: 0.85,
-        cleared: false,
-        snapX: w * 0.5 + (Math.random() - 0.5) * 100,
-        snapY: h * 0.5 + (Math.random() - 0.5) * 60,
-      };
-    });
-    keywordsRef.current = kws;
-  }, [keywords]);
+  // Tasks are snapshotted when the user comes back. The app is read live:
+  // when a story jumps here, the right window is focused a moment after the
+  // moss mounts, and a snapshot would name the wrong app.
+  const [taskContext] = useState(() => {
+    const open = tasks.filter(t => !t.completed);
+    return { current: open[0]?.title ?? null, next: open[1]?.title ?? null };
+  });
+  const context = {
+    ...taskContext,
+    app: windows.find(w => w.id === focusedWindowId)?.title ?? null,
+  };
+  const words = keywords.filter(k => k && k !== context.current && k !== context.next).slice(0, 6);
 
-  // Main render loop
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const cellsRef = useRef<Cell[]>([]);
+  const mouseRef = useRef({ x: -1000, y: -1000, speed: 0 });
+  const startRef = useRef(0);
+  const frameRef = useRef(0);
+  const [leaving, setLeaving] = useState(false);
+  const [wiped, setWiped] = useState(0);
+
+  const finish = useCallback(() => setLeaving(true), []);
+
+  // Draw loop
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
 
     const resize = () => {
       const parent = canvas.parentElement;
       if (!parent) return;
       canvas.width = parent.clientWidth;
       canvas.height = parent.clientHeight;
-      initParticles(canvas.width, canvas.height);
+      cellsRef.current = buildCells(canvas.width, canvas.height);
     };
-
     resize();
     window.addEventListener("resize", resize);
+    startRef.current = performance.now();
 
-    const render = () => {
-      const w = canvas.width;
-      const h = canvas.height;
+    let lastPct = -1;
+    const render = (now: number) => {
+      const { width: w, height: h } = canvas;
       ctx.clearRect(0, 0, w, h);
+      const theme = readTheme();
+      ctx.fillStyle = theme.ink;
 
-      timeRef.current += 0.016; // ~60fps
-      const time = timeRef.current;
-
-      // Grow residue over time
-      growthRef.current = Math.min(growthRef.current + 0.008, 1);
-      const growth = growthRef.current;
+      // Growth front moves inward with an ease-out, so the creep reads as deliberate.
+      const t = Math.min(1, (now - startRef.current) / GROW_MS);
+      const front = (1 - Math.pow(1 - t, 3)) * (REACH + RAGGED);
 
       const mouse = mouseRef.current;
+      const brush = 60 + Math.min(mouse.speed, 40) * 1.5;
+      const cells = cellsRef.current;
+      let cleared = 0;
 
-      // Draw residue particles
-      for (const p of particlesRef.current) {
-        if (p.cleared) continue;
-
-        // Grow based on depth and global growth
-        const depthDelay = p.depth * 0.6;
-        const localGrowth = Math.max(0, (growth - depthDelay) / (1 - depthDelay));
-        p.size = p.maxSize * localGrowth * p.growth;
-        p.opacity = Math.min(localGrowth * 0.8, 0.7);
-
-        // Check mouse proximity for clearing
-        const dx = p.x - mouse.x;
-        const dy = p.y - mouse.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        const clearRadius = 80 + mouse.velocity * 2;
-
-        if (dist < clearRadius && mouse.velocity > 5) {
-          p.cleared = true;
-          mouse.totalCleared++;
-          continue;
+      for (const c of cells) {
+        if (!c.cleared && mouse.speed > 2) {
+          const dx = c.x - mouse.x, dy = c.y - mouse.y;
+          if (dx * dx + dy * dy < brush * brush) c.cleared = true;
         }
-
-        if (p.size < 0.5) continue;
-
-        // Subtle breathing: oscillate size
-        const breathe = 1 + Math.sin(time * 0.8 + p.x * 0.005 + p.y * 0.003) * 0.06;
-
-        // Draw organic blob
+        if (c.cleared) { cleared++; continue; }
+        if (c.depth > front) continue;
+        // Cells just behind the front fade in rather than pop.
+        const appear = Math.min(1, (front - c.depth) / 0.04);
+        const r = (CELL / 2) * (0.25 + 0.65 * c.density) * appear;
+        ctx.globalAlpha = 0.18 + 0.5 * c.density;
         ctx.beginPath();
-        ctx.globalAlpha = p.opacity;
-
-        const segments = 6;
-        for (let s = 0; s <= segments; s++) {
-          const angle = (s / segments) * Math.PI * 2;
-          const noise = 0.7 + Math.sin(angle * 3 + p.x * 0.01 + time * 0.3) * 0.3;
-          const r = p.size * noise * breathe;
-          const px = p.x + Math.cos(angle) * r;
-          const py = p.y + Math.sin(angle) * r;
-          if (s === 0) ctx.moveTo(px, py);
-          else ctx.lineTo(px, py);
-        }
-        ctx.closePath();
-
-        // Blue → violet → red gradient per particle
-        const lightness = 22 + (1 - p.depth) * 12; // brighter at edges
-        const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * breathe);
-        gradient.addColorStop(0, `hsla(${p.hue}, ${p.sat}%, ${lightness + 8}%, ${p.opacity})`);
-        gradient.addColorStop(0.6, `hsla(${p.hue}, ${p.sat - 10}%, ${lightness}%, ${p.opacity * 0.6})`);
-        gradient.addColorStop(1, `hsla(${p.hue}, ${p.sat - 15}%, ${lightness - 5}%, 0)`);
-        ctx.fillStyle = gradient;
+        ctx.arc(c.x, c.y, r, 0, Math.PI * 2);
         ctx.fill();
       }
-
-      // Draw connecting tendrils between nearby particles (blue-violet)
-      ctx.lineWidth = 1;
-      const activeParticles = particlesRef.current.filter(p => !p.cleared && p.size > 3);
-      for (let i = 0; i < activeParticles.length; i += 3) {
-        const a = activeParticles[i];
-        for (let j = i + 1; j < Math.min(i + 8, activeParticles.length); j += 2) {
-          const b = activeParticles[j];
-          const d = Math.hypot(a.x - b.x, a.y - b.y);
-          if (d < 60) {
-            const fade = 1 - d / 60;
-            // Blend between blue and violet for tendrils
-            const avgHue = (a.hue + b.hue) / 2;
-            ctx.globalAlpha = 0.1 * fade;
-            ctx.strokeStyle = `hsla(${avgHue}, 45%, 35%, 0.4)`;
-            ctx.beginPath();
-            ctx.moveTo(a.x, a.y);
-            const cx = (a.x + b.x) / 2 + (Math.random() - 0.5) * 20;
-            const cy = (a.y + b.y) / 2 + (Math.random() - 0.5) * 20;
-            ctx.quadraticCurveTo(cx, cy, b.x, b.y);
-            ctx.stroke();
-          }
-        }
-      }
-
-      // Draw keywords with blue→violet glow
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-
-      for (const kw of keywordsRef.current) {
-        if (kw.cleared) continue;
-
-        kw.opacity += (kw.targetOpacity - kw.opacity) * 0.02;
-
-        const dxk = kw.x - mouse.x;
-        const dyk = kw.y - mouse.y;
-        const distk = Math.sqrt(dxk * dxk + dyk * dyk);
-        if (distk < 100 && mouse.velocity > 8) {
-          kw.cleared = true;
-          mouse.totalCleared += 10;
-        }
-
-        if (kw.opacity < 0.01) continue;
-
-        ctx.globalAlpha = kw.opacity * growth;
-        ctx.font = `500 13px ${FRICTION_FONTS.mono}`;
-
-        // Blue-violet text glow
-        ctx.shadowColor = `rgba(${BLUE_RGB[0]}, ${BLUE_RGB[1]}, ${BLUE_RGB[2]}, 0.8)`;
-        ctx.shadowBlur = 12;
-        // Cool white-blue text
-        ctx.fillStyle = `rgba(${BLUE_RGB[0] + 90}, ${BLUE_RGB[1] + 80}, ${BLUE_RGB[2] + 40}, ${kw.opacity * 0.9})`;
-        ctx.fillText(kw.text, kw.x, kw.y);
-
-        // Outline in violet
-        ctx.shadowBlur = 0;
-        ctx.strokeStyle = `rgba(${VIOLET_RGB[0]}, ${VIOLET_RGB[1]}, ${VIOLET_RGB[2]}, ${kw.opacity * 0.4})`;
-        ctx.lineWidth = 0.5;
-        ctx.strokeText(kw.text, kw.x, kw.y);
-      }
-
-      ctx.shadowBlur = 0;
       ctx.globalAlpha = 1;
+      mouse.speed *= 0.85; // a resting cursor stops wiping
 
-      // Edge vignette — deep navy instead of green
-      const edgeGrad = ctx.createRadialGradient(w/2, h/2, Math.min(w, h) * 0.3, w/2, h/2, Math.max(w, h) * 0.7);
-      edgeGrad.addColorStop(0, "transparent");
-      edgeGrad.addColorStop(1, `rgba(6, 10, 18, ${growth * 0.35})`);
-      ctx.fillStyle = edgeGrad;
-      ctx.fillRect(0, 0, w, h);
-
-      // Calculate clear progress — only setState when rounded % changes
-      const total = particlesRef.current.length;
-      const cleared = particlesRef.current.filter(p => p.cleared).length;
-      const progress = cleared / total;
-      const rounded = Math.round(progress * 100);
-      if (rounded !== Math.round(lastProgressRef.current * 100)) {
-        lastProgressRef.current = progress;
-        setClearProgress(progress);
+      const share = cells.length ? cleared / cells.length : 1;
+      const pct = Math.round(share * 100);
+      if (pct !== lastPct) {
+        lastPct = pct;
+        setWiped(share);
       }
+      if (share >= DONE_AT) finish();
 
-      if (progress > 0.45 && !isClearing) {
-        setIsClearing(true);
-      }
-
-      animFrameRef.current = requestAnimationFrame(render);
+      frameRef.current = requestAnimationFrame(render);
     };
-
-    animFrameRef.current = requestAnimationFrame(render);
+    frameRef.current = requestAnimationFrame(render);
 
     return () => {
       window.removeEventListener("resize", resize);
-      cancelAnimationFrame(animFrameRef.current);
+      cancelAnimationFrame(frameRef.current);
     };
-  }, [initParticles]);
+  }, [finish]);
 
-  // Handle clearing completion
+  // Enter or Esc: back to work
   useEffect(() => {
-    if (isClearing) {
-      const timer = setTimeout(onClear, 1200);
-      return () => clearTimeout(timer);
-    }
-  }, [isClearing, onClear]);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === "Escape") finish();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [finish]);
+
+  // Let the fade finish, then hand control back
+  useEffect(() => {
+    if (!leaving) return;
+    const timer = setTimeout(onClear, 360);
+    return () => clearTimeout(timer);
+  }, [leaving, onClear]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
-    const newX = e.clientX - rect.left;
-    const newY = e.clientY - rect.top;
-    const velocity = Math.abs(e.movementX) + Math.abs(e.movementY);
     mouseRef.current = {
-      ...mouseRef.current,
-      x: newX,
-      y: newY,
-      velocity: velocity,
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+      speed: Math.hypot(e.movementX, e.movementY),
     };
   }, []);
 
@@ -351,92 +211,89 @@ export function DigitalMoss({ keywords, taskContext, onClear }: Props) {
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }}
-        animate={{ opacity: isClearing ? 0 : 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: isClearing ? 1.2 : 0.8 }}
-        className="absolute inset-0 cursor-crosshair"
-        style={{ zIndex: 8500 }}
+        animate={{ opacity: leaving ? 0 : 1 }}
+        transition={{ duration: 0.34, ease: [0.32, 0.72, 0, 1] }}
+        className="absolute inset-0"
+        style={{ zIndex: 8500, cursor: "crosshair", fontFamily: "var(--pi-font)" }}
         onMouseMove={handleMouseMove}
       >
+        {/* A light wash so the card reads against any window underneath */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{ backgroundColor: "color-mix(in srgb, var(--pi-ground) 55%, transparent)" }}
+        />
         <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
 
-        {/* Context recovery header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: isClearing ? 0 : 1, y: 0 }}
-          transition={{ delay: 1.5, duration: 0.8 }}
-          className="absolute top-8 left-1/2 -translate-x-1/2 text-center"
-          style={{ zIndex: 8501 }}
-        >
-          <div
-            className="uppercase tracking-[0.3em] mb-2"
+        {/* The card: where you left off */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: GROW_MS / 1000 * 0.6, duration: 0.34, ease: [0.32, 0.72, 0, 1] }}
+            className="pointer-events-auto"
             style={{
-              fontFamily: FRICTION_FONTS.heading,
-              color: FRICTION_COLORS.blue200,
-              fontSize: "0.6rem",
-              textShadow: `0 0 20px ${FRICTION_COLORS.blueGlow}`,
+              width: "min(380px, 80%)",
+              backgroundColor: "var(--pi-surface)",
+              border: "1px solid var(--pi-ink)",
+              color: "var(--pi-ink)",
+              padding: "20px 22px",
+              cursor: "default",
             }}
           >
-            Returning from Interruption
-          </div>
-          {taskContext && (
-            <div
-              className="mb-3"
-              style={{
-                fontFamily: FRICTION_FONTS.body,
-                color: FRICTION_COLORS.textSecondary,
-                fontSize: "0.75rem",
-              }}
-            >
-              {taskContext}
+            <div className="pi-label" style={{ marginBottom: 14 }}>Where you left off</div>
+
+            {context.current ? (
+              <>
+                <div style={{ fontSize: "0.7rem", color: "var(--pi-ink-60)" }}>You were working on</div>
+                <div style={{ fontSize: "1.05rem", fontWeight: 500, lineHeight: 1.3, margin: "2px 0 0" }}>
+                  {context.current}
+                </div>
+                {context.app && (
+                  <div style={{ fontSize: "0.8rem", color: "var(--pi-ink-60)", marginTop: 4 }}>in {context.app}</div>
+                )}
+              </>
+            ) : (
+              <div style={{ fontSize: "0.95rem" }}>You were away from your desk.</div>
+            )}
+
+            {words.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <div style={{ fontSize: "0.7rem", color: "var(--pi-ink-60)", marginBottom: 6 }}>Words you were using</div>
+                <div className="flex flex-wrap" style={{ gap: 6 }}>
+                  {words.map(word => (
+                    <span
+                      key={word}
+                      style={{
+                        fontSize: "0.75rem",
+                        padding: "3px 8px",
+                        border: "1px solid var(--pi-hairline)",
+                        fontVariantNumeric: "tabular-nums",
+                      }}
+                    >
+                      {word}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {context.next && (
+              <div style={{ marginTop: 16, paddingTop: 12, borderTop: "1px solid var(--pi-hairline)", fontSize: "0.8rem" }}>
+                <span style={{ color: "var(--pi-ink-60)" }}>Next: </span>{context.next}
+              </div>
+            )}
+
+            <button type="button" className="pi-btn w-full" style={{ marginTop: 18 }} onClick={finish} autoFocus>
+              Back to work
+            </button>
+            <div style={{ fontSize: "0.7rem", color: "var(--pi-ink-60)", marginTop: 8, textAlign: "center" }}>
+              Or sweep the mouse across the moss.{" "}
+              <span style={{ fontVariantNumeric: "tabular-nums" }}>
+                {Math.min(100, Math.round((wiped / DONE_AT) * 100))}%
+              </span>
             </div>
-          )}
-        </motion.div>
-
-        {/* Swipe prompt */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: isClearing ? 0 : [0.4, 0.8, 0.4] }}
-          transition={{ delay: 2.5, duration: 2, repeat: Infinity }}
-          className="absolute bottom-12 left-1/2 -translate-x-1/2 text-center"
-          style={{ zIndex: 8501 }}
-        >
-          <div
-            className="uppercase tracking-[0.2em]"
-            style={{
-              fontFamily: FRICTION_FONTS.heading,
-              color: "var(--friction-accent-amber)",
-              fontSize: "0.65rem",
-              textShadow: "0 0 10px rgba(255, 167, 38, 0.5)",
-            }}
-          >
-            Swipe to clear and resume
-          </div>
-          <div
-            className="mt-2"
-            style={{
-              fontFamily: FRICTION_FONTS.mono,
-              color: FRICTION_COLORS.textMuted,
-              fontSize: "0.55rem",
-            }}
-          >
-            {Math.round(clearProgress * 100)}% cleared
-          </div>
-        </motion.div>
-
-        {/* Mouse trail glow — blue-violet radial */}
-        <div
-          className="pointer-events-none absolute rounded-full"
-          style={{
-            left: mouseRef.current.x - 50,
-            top: mouseRef.current.y - 50,
-            width: 100,
-            height: 100,
-            background: `radial-gradient(circle, ${FRICTION_COLORS.blueGlow} 0%, rgba(124, 77, 160, 0.08) 50%, transparent 70%)`,
-            mixBlendMode: "screen",
-            zIndex: 8502,
-          }}
-        />
+          </motion.div>
+        </div>
       </motion.div>
     </AnimatePresence>
   );

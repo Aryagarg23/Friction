@@ -1,7 +1,7 @@
 /**
  * REFLECTION — Hardcoded Demo Data
  * ============================================================
- * Fake session history for the Reflection / Mirror screen.
+ * Fake session history for the Recap screen.
  * 8 sessions spanning Feb 28 – Mar 8, 2026.
  */
 
@@ -201,7 +201,7 @@ export const HOURLY_INTENSITY: number[] = Array.from({ length: 24 }, (_, h) => {
   return 0.05 + Math.random() * 0.05;
 });
 
-// ── Screen 3 contextual insights ────────────────────────────
+// ── Details tab text ────────────────────────────────────────
 
 export interface DetailInsight {
   miniStats: { label: string; value: string; change?: string }[];
@@ -212,41 +212,41 @@ export interface DetailInsight {
 export const DETAIL_INSIGHTS: Record<"intensity" | "sessions" | "hours", DetailInsight> = {
   intensity: {
     miniStats: [
-      { label: "WoW Change", value: "+12%", change: "up" },
-      { label: "Daily Avg", value: "2.1h" },
+      { label: "Since last week", value: "+12%", change: "up" },
+      { label: "Per day", value: "2.1 h" },
       { label: "Sessions", value: "8" },
-      { label: "Peak Day", value: "Friday" },
+      { label: "Hardest day", value: "Friday" },
     ],
     paragraphs: [
-      "Your intensity patterns show a clear mid-week ramp. Tuesdays and Fridays consistently register as your highest-load days, with cognitive weight scores regularly exceeding 0.75. This aligns with typical sprint cadences where deep implementation work clusters around mid-cycle.",
-      "Weekend sessions tend to be lighter but longer — you're spending more time in moderate-intensity states. Your recovery windows between high-intensity blocks average 18 hours, which is within the healthy range for sustained cognitive performance.",
+      "Your hardest days are Tuesday and Friday. On those days your task weight is often above 0.75.",
+      "Weekend sessions are lighter but longer. You get about 18 hours of rest between hard sessions.",
     ],
-    recommendation: "Schedule your hardest tasks for Tuesday and Friday mornings (9–11 AM). Reserve Wednesday afternoons for lighter administrative work — your data shows a natural energy dip mid-week that you've been intuitively following.",
+    recommendation: "Put your hardest tasks on Tuesday and Friday mornings, 9 to 11. Keep Wednesday afternoon for small tasks. You already slow down then.",
   },
   sessions: {
     miniStats: [
-      { label: "This Month", value: "8", change: "up" },
-      { label: "Avg Duration", value: "123min" },
-      { label: "Completion", value: "92%" },
-      { label: "Streak", value: "6 days" },
+      { label: "This month", value: "8", change: "up" },
+      { label: "Average length", value: "123 min" },
+      { label: "Tasks finished", value: "92%" },
+      { label: "Days in a row", value: "6" },
     ],
     paragraphs: [
-      "You've maintained a consistent session cadence with 8 sessions over 9 days. Your average session duration of 123 minutes sits in the optimal zone — long enough for deep work states but short enough to avoid significant glutamate buildup.",
-      "The 6-day streak is your longest this quarter. Sessions on consecutive days show a compounding effect: your time-to-flow decreased from ~12 minutes to ~7 minutes by day 4, suggesting your brain is adapting to the routine.",
+      "You did 8 sessions in 9 days. They averaged 123 minutes, which is a good length for hard work.",
+      "Six days in a row is your longest run this quarter. By day 4 you settled in faster: about 7 minutes instead of 12.",
     ],
-    recommendation: "You're in a strong rhythm. Consider adding a brief 'warm-up task' (5–10 min, low cognitive weight) at the start of each session to prime your attention networks before diving into deep work.",
+    recommendation: "Start each session with one small task of 5 to 10 minutes. Then move to the hard work.",
   },
   hours: {
     miniStats: [
-      { label: "This Week", value: "9.2h", change: "up" },
-      { label: "Daily Avg", value: "2.1h" },
-      { label: "Peak Hours", value: "9–11 AM" },
-      { label: "Longest", value: "2h 55m" },
+      { label: "This week", value: "9.2 h", change: "up" },
+      { label: "Per day", value: "2.1 h" },
+      { label: "Best hours", value: "9–11 AM" },
+      { label: "Longest session", value: "2 h 55 min" },
     ],
     paragraphs: [
-      "Total deep work hours have increased 18% compared to last week. Your morning window (9 AM–noon) accounts for 64% of all productive hours, with the 10 AM hour being your most consistently high-performing slot across all 8 sessions.",
-      "Afternoon sessions (post-2 PM) show 34% lower focus scores on average. When you do work in the afternoon, moderate-intensity tasks perform significantly better than high-intensity ones — your completion rate drops from 95% to 71% for deep tasks after lunch.",
+      "You worked 18% more hours than last week. 64% of your work happens between 9 AM and noon. 10 AM is your best hour.",
+      "After 2 PM your focus is 34% lower. You finish 95% of hard tasks in the morning and 71% after lunch.",
     ],
-    recommendation: "Protect your 9–11 AM window aggressively — no meetings, no Slack. Move all deep work to mornings and batch lighter tasks for post-lunch. Your data suggests a 20-minute break at 11:30 AM could extend your morning peak by ~45 minutes.",
+    recommendation: "Keep 9 to 11 AM free of meetings and chat. Do hard tasks in the morning and small ones after lunch. A 20 minute break at 11:30 may give you about 45 more good minutes.",
   },
 };

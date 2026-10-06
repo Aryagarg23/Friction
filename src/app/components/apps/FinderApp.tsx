@@ -17,56 +17,107 @@ interface FileItem {
   children?: FileItem[];
 }
 
+// Desktop as it looked on Monday, March 9 2026, the day of the Fig Build deadline.
 const FILE_TREE: FileItem[] = [
   {
-    name: "Documents", type: "folder", icon: "folder", modified: "Today", children: [
-      { name: "project-brief.pdf", type: "file", icon: "text", size: "2.4 MB", modified: "Mar 8" },
-      { name: "sprint-notes.md", type: "file", icon: "code", size: "12 KB", modified: "Mar 7" },
-      { name: "budget-2026.xlsx", type: "file", icon: "text", size: "156 KB", modified: "Mar 5" },
-      { name: "design-spec.fig", type: "file", icon: "image", size: "8.7 MB", modified: "Mar 4" },
+    name: "Fig Build 2026", type: "folder", icon: "folder", modified: "Today", children: [
+      {
+        name: "deck", type: "folder", icon: "folder", modified: "Today", children: [
+          { name: "Friction_FigBuild2026_deck.pdf", type: "file", icon: "text", size: "18.4 MB", modified: "Today" },
+          { name: "Friction_FigBuild2026_deck (archetypes draft).pdf", type: "file", icon: "text", size: "14.9 MB", modified: "Mar 8" },
+        ]
+      },
+      {
+        name: "storyboard", type: "folder", icon: "folder", modified: "Mar 8", children: [
+          { name: "mc storyboard —> gradient intro.pdf", type: "file", icon: "image", size: "6.2 MB", modified: "Mar 8" },
+          { name: "timer 37 secs or 20 secs??.png", type: "file", icon: "image", size: "842 KB", modified: "Mar 8" },
+          { name: "text reveals + captions.txt", type: "file", icon: "text", size: "3 KB", modified: "Mar 8" },
+        ]
+      },
+      {
+        name: "product doc", type: "folder", icon: "folder", modified: "Mar 8", children: [
+          { name: "Friction product doc v1.docx", type: "file", icon: "text", size: "41 KB", modified: "Mar 7" },
+          { name: "Friction product doc v2.docx", type: "file", icon: "text", size: "58 KB", modified: "Mar 7" },
+          { name: "Friction product doc v3 (haley edits!!).docx", type: "file", icon: "text", size: "77 KB", modified: "Mar 8" },
+          { name: "Friction product doc v4.docx", type: "file", icon: "text", size: "93 KB", modified: "Mar 8" },
+        ]
+      },
+      {
+        name: "calibration exports", type: "folder", icon: "folder", modified: "Mar 8", children: [
+          { name: "phase1_spem_baseline.csv", type: "file", icon: "code", size: "1.3 MB", modified: "Mar 8" },
+          { name: "phase2_rf_mesh_capture.ply", type: "file", icon: "archive", size: "22.6 MB", modified: "Mar 8" },
+          { name: "phase3_keystroke_topography.json", type: "file", icon: "code", size: "410 KB", modified: "Mar 8" },
+          { name: "README - mock data, stays local.txt", type: "file", icon: "text", size: "1 KB", modified: "Mar 8" },
+        ]
+      },
+      {
+        name: "research", type: "folder", icon: "folder", modified: "Mar 7", children: [
+          { name: "Clark & Chalmers - The Extended Mind.pdf", type: "file", icon: "text", size: "214 KB", modified: "Mar 7" },
+          { name: "Frontiers - The Neuroscience of the Flow State (LC-NE).pdf", type: "file", icon: "text", size: "1.1 MB", modified: "Mar 7" },
+          { name: "Frontiers - The impacts of mind-wandering on flow.pdf", type: "file", icon: "text", size: "896 KB", modified: "Mar 7" },
+          { name: "Penn Medicine - brain mechanism that drives focus.pdf", type: "file", icon: "text", size: "338 KB", modified: "Mar 7" },
+          { name: "neuromorphic + SNN reading notes.md", type: "file", icon: "code", size: "9 KB", modified: "Mar 7" },
+          { name: "audiences - phds vs lawyers vs creators.docx", type: "file", icon: "text", size: "36 KB", modified: "Mar 7" },
+        ]
+      },
+      {
+        name: "freakoff-corner-screenshots", type: "folder", icon: "folder", modified: "Mar 7", children: [
+          { name: "garmin x meta ad (PMO).png", type: "file", icon: "image", size: "1.6 MB", modified: "Mar 7" },
+          { name: "hello macbook neo FIRE.png", type: "file", icon: "image", size: "2.3 MB", modified: "Mar 7" },
+          { name: "adidas superstar also fire.png", type: "file", icon: "image", size: "2.1 MB", modified: "Mar 7" },
+          { name: "dune bene gesserit aesthetic.jpg", type: "file", icon: "image", size: "980 KB", modified: "Mar 6" },
+        ]
+      },
+      {
+        name: "demo video", type: "folder", icon: "folder", modified: "Today", children: [
+          { name: "friction_demo_v1_roughcut.mp4", type: "file", icon: "video", size: "412 MB", modified: "Today" },
+          { name: "friction_demo_v2_captions.mp4", type: "file", icon: "video", size: "438 MB", modified: "Today" },
+          { name: "friction_demo_final_render.mp4", type: "file", icon: "video", size: "455 MB", modified: "Today" },
+        ]
+      },
+      { name: "FIGBUILD 2026 SELF-CHECK RUBRIC.pdf", type: "file", icon: "text", size: "286 KB", modified: "Mar 6" },
+    ]
+  },
+  {
+    name: "Documents", type: "folder", icon: "folder", modified: "Mar 8", children: [
+      { name: "Mc brain dump.txt", type: "file", icon: "text", size: "2 KB", modified: "Mar 6" },
+      { name: "haley brain dump (word vomit).docx", type: "file", icon: "text", size: "29 KB", modified: "Mar 6" },
+      { name: "extended mind annotations.md", type: "file", icon: "code", size: "4 KB", modified: "Mar 7" },
+      { name: "clay -> gyrus (WeaveHacks) notes.md", type: "file", icon: "code", size: "11 KB", modified: "Mar 5" },
     ]
   },
   {
     name: "Projects", type: "folder", icon: "folder", modified: "Today", children: [
       {
-        name: "friction-app", type: "folder", icon: "folder", modified: "Today", children: [
+        name: "friction", type: "folder", icon: "folder", modified: "Today", children: [
           { name: "src/", type: "folder", icon: "folder", modified: "Today" },
-          { name: "package.json", type: "file", icon: "code", size: "1.2 KB", modified: "Today" },
-          { name: "tsconfig.json", type: "file", icon: "code", size: "542 B", modified: "Mar 6" },
-          { name: "README.md", type: "file", icon: "text", size: "3.1 KB", modified: "Mar 5" },
-          { name: "vite.config.ts", type: "file", icon: "code", size: "380 B", modified: "Mar 4" },
+          { name: "package.json", type: "file", icon: "code", size: "2.6 KB", modified: "Mar 8" },
+          { name: "vite.config.ts", type: "file", icon: "code", size: "412 B", modified: "Mar 6" },
+          { name: "README.md", type: "file", icon: "text", size: "3.4 KB", modified: "Today" },
         ]
       },
       {
-        name: "ml-pipeline", type: "folder", icon: "folder", modified: "Mar 3", children: [
-          { name: "model.py", type: "file", icon: "code", size: "14 KB", modified: "Mar 3" },
-          { name: "train.py", type: "file", icon: "code", size: "8.2 KB", modified: "Mar 2" },
-          { name: "requirements.txt", type: "file", icon: "text", size: "245 B", modified: "Feb 28" },
+        name: "gyrus", type: "folder", icon: "folder", modified: "Mar 5", children: [
+          { name: "src/", type: "folder", icon: "folder", modified: "Mar 5" },
+          { name: "README.md", type: "file", icon: "text", size: "2.8 KB", modified: "Mar 5" },
         ]
       },
     ]
   },
   {
-    name: "Downloads", type: "folder", icon: "folder", modified: "Yesterday", children: [
-      { name: "app-installer.dmg", type: "file", icon: "archive", size: "245 MB", modified: "Mar 7" },
-      { name: "screenshot-2026.png", type: "file", icon: "image", size: "1.8 MB", modified: "Mar 6" },
-      { name: "presentation.key", type: "file", icon: "text", size: "52 MB", modified: "Mar 5" },
+    name: "Downloads", type: "folder", icon: "folder", modified: "Today", children: [
+      { name: "figma-make-export-friction.zip", type: "file", icon: "archive", size: "3.7 MB", modified: "Today" },
+      { name: "the-extended-mind.pdf", type: "file", icon: "text", size: "214 KB", modified: "Mar 7" },
+      { name: "fnhum-flow-state-lc-ne.pdf", type: "file", icon: "text", size: "1.1 MB", modified: "Mar 7" },
     ]
   },
   {
-    name: "Music", type: "folder", icon: "folder", modified: "Mar 1", children: [
-      { name: "focus-playlist.m3u", type: "file", icon: "music", size: "1 KB", modified: "Mar 1" },
-      { name: "ambient-mix.mp3", type: "file", icon: "music", size: "64 MB", modified: "Feb 28" },
+    name: "Music", type: "folder", icon: "folder", modified: "Mar 8", children: [
+      { name: "40Hz binaural - desk vibration test.wav", type: "file", icon: "music", size: "50.5 MB", modified: "Mar 8" },
+      { name: "deep work.m3u", type: "file", icon: "music", size: "1 KB", modified: "Mar 6" },
     ]
   },
-  {
-    name: "Pictures", type: "folder", icon: "folder", modified: "Feb 20", children: [
-      { name: "wallpapers/", type: "folder", icon: "folder", modified: "Feb 20" },
-      { name: "screenshots/", type: "folder", icon: "folder", modified: "Feb 18" },
-    ]
-  },
-  { name: ".gitconfig", type: "file", icon: "code", size: "342 B", modified: "Jan 15" },
-  { name: ".zshrc", type: "file", icon: "code", size: "1.1 KB", modified: "Feb 10" },
+  { name: "Screenshot 2026-03-09 at 2.41.17 AM.png", type: "file", icon: "image", size: "1.2 MB", modified: "Today" },
 ];
 
 const ICON_MAP: Record<string, React.ComponentType<{ size: number; style?: React.CSSProperties }>> = {

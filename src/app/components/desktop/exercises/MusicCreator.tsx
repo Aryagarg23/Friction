@@ -2,13 +2,12 @@
  * MUSIC CREATOR — Refocus Exercise A
  *
  * Renders the Build-a-Song HTML experience inside a sandboxed iframe.
- * The outer shell handles backdrop, close button, and Friction styling.
+ * The outer shell is a flat ground backdrop and a square close button.
  */
 
 import { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { X } from "lucide-react";
-import { FRICTION_COLORS } from "../../friction-app/friction-styles";
 import { BUILD_A_SONG_HTML } from "./build-a-song-html";
 
 interface Props {
@@ -42,26 +41,19 @@ export function MusicCreator({ onClose }: Props) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.4 }}
+      transition={{ duration: 0.34, ease: [0.32, 0.72, 0, 1] }}
       className="absolute inset-0 flex items-center justify-center"
       style={{
         zIndex: 9200,
-        backgroundColor: "rgba(6, 10, 18, 0.85)",
-        backdropFilter: "blur(12px)",
+        backgroundColor: "var(--pi-ground)",
       }}
     >
-      {/* Close button */}
       <button
         onClick={onClose}
-        className="absolute top-4 right-4 p-2 rounded-full cursor-pointer"
-        style={{
-          zIndex: 9300,
-          backgroundColor: "rgba(255,255,255,0.08)",
-          borderWidth: 1,
-          borderStyle: "solid",
-          borderColor: FRICTION_COLORS.borderSubtle,
-          color: FRICTION_COLORS.textMuted,
-        }}
+        aria-label="Close"
+        title="Close"
+        className="pi-btn absolute top-4 right-4 flex items-center justify-center"
+        style={{ zIndex: 9300, width: 32, height: 32, padding: 0, backgroundColor: "var(--pi-surface)" }}
       >
         <X size={16} />
       </button>
@@ -70,14 +62,13 @@ export function MusicCreator({ onClose }: Props) {
       <iframe
         ref={iframeRef}
         srcDoc={BUILD_A_SONG_HTML}
-        title="Build a Song"
+        title="Make a beat"
         className="absolute inset-0 w-full h-full"
         style={{
           border: "none",
-          borderRadius: 0,
           background: "transparent",
           opacity: loaded ? 1 : 0,
-          transition: "opacity 0.3s ease",
+          transition: "opacity var(--pi-ease-focus)",
         }}
         sandbox="allow-scripts allow-same-origin"
         onLoad={() => setLoaded(true)}

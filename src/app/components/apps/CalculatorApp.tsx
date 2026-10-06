@@ -14,7 +14,13 @@ export function CalculatorApp() {
   const [previousValue, setPreviousValue] = useState<number | null>(null);
   const [operation, setOperation] = useState<Operation>(null);
   const [resetNext, setResetNext] = useState(false);
-  const [history, setHistory] = useState<string[]>([]);
+  // Left over from the sprint: the storyboard timer (37 secs vs 20 secs),
+  // the rubric's 22–33 senses, and the Data Burn hold in ms.
+  const [history, setHistory] = useState<string[]>([
+    "37 - 20 = 17",
+    "33 - 22 = 11",
+    "3 × 1000 = 3000",
+  ]);
   const [memory, setMemory] = useState(0);
 
   const inputDigit = (digit: string) => {

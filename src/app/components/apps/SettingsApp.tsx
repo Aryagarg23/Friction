@@ -6,6 +6,7 @@
  */
 
 import { useState } from "react";
+import { useFrictionSettings } from "../../context/FrictionSettingsContext";
 import { Wifi, Bluetooth, Monitor, Moon, Bell, Shield, Palette, Volume2, Keyboard, Mouse, Zap } from "lucide-react";
 
 interface SettingSection {
@@ -91,21 +92,14 @@ export function SettingsApp() {
     brightness: 80,
     keyRepeatSpeed: 70,
     mouseSpeed: 50,
-    // Friction-specific
-    frictionEnabled: true,
-    frictionOverlay: true,
-    digitalMoss: true,
-    tactileStrike: true,
-    progressiveVignette: true,
-    breathingVisualizer: true,
-    taperAmbient: true,
+    // Friction-specific (the rest of the Friction settings live in FrictionSettingsContext)
     frictionSensitivity: 60,
     recoveryDuration: 15,
-    interceptThreshold: 95,
     appearance: "dark" as "dark" | "light" | "auto",
     accentColor: "#ff9f0a",
   });
 
+  const friction = useFrictionSettings();
   const update = (key: string, value: any) => {
     setSettings(prev => ({ ...prev, [key]: value }));
   };
@@ -301,45 +295,45 @@ export function SettingsApp() {
       case "friction":
         return (
           <div className="space-y-6">
-            <h2 className="text-lg" style={{ color: "#202124" }}>Friction Companion</h2>
+            <h2 className="text-lg" style={{ color: "#202124" }}>Friction</h2>
             <div className="p-4 rounded-lg mb-4" style={{ backgroundColor: "#1a1a1a", border: "1px solid #333" }}>
               <div className="flex items-center gap-2 mb-2">
                 <Zap size={16} style={{ color: "#ffa726" }} />
-                <span className="text-sm" style={{ color: "#ffa726" }}>Friction v2.1.0</span>
+                <span className="text-sm" style={{ color: "#ffa726" }}>Friction</span>
               </div>
-              <p className="text-xs" style={{ color: "#888" }}>Adaptive cognitive load management</p>
+              <p className="text-xs" style={{ color: "#888" }}>Steps in when you are tired or losing focus.</p>
             </div>
-            <SettingRow label="Enable Friction" description="Activate the Friction companion system">
-              <Toggle checked={settings.frictionEnabled} onChange={(v) => update("frictionEnabled", v)} />
+            <SettingRow label="Turn on Friction" description="Turns every effect below on or off">
+              <Toggle checked={friction.frictionEnabled} onChange={(v) => friction.update("frictionEnabled", v)} />
             </SettingRow>
-            <SettingRow label="Overlay Sidebar" description="Ambient sidebar on screen edge">
-              <Toggle checked={settings.frictionOverlay} onChange={(v) => update("frictionOverlay", v)} />
+            <SettingRow label="Side panel" description="The panel on the right edge of the screen">
+              <Toggle checked={friction.frictionOverlay} onChange={(v) => friction.update("frictionOverlay", v)} />
             </SettingRow>
-            <div className="text-sm mt-4 mb-2" style={{ color: "#666" }}>Signature Effects</div>
-            <SettingRow label="Digital Moss" description="Canvas tendrils on return from interruption">
-              <Toggle checked={settings.digitalMoss} onChange={(v) => update("digitalMoss", v)} />
+            <div className="text-sm mt-4 mb-2" style={{ color: "#666" }}>Effects</div>
+            <SettingRow label="Moss" description="Covers the screen after an interruption so you can pick up where you left off">
+              <Toggle checked={friction.digitalMoss} onChange={(v) => friction.update("digitalMoss", v)} />
             </SettingRow>
-            <SettingRow label="Tactile Strike" description="Glassmorphic ripple on task completion">
-              <Toggle checked={settings.tactileStrike} onChange={(v) => update("tactileStrike", v)} />
+            <SettingRow label="Task done flash" description="Shows the next task when you finish one">
+              <Toggle checked={friction.tactileStrike} onChange={(v) => friction.update("tactileStrike", v)} />
             </SettingRow>
-            <SettingRow label="Progressive Vignette" description="Cinematic shutdown on high fatigue">
-              <Toggle checked={settings.progressiveVignette} onChange={(v) => update("progressiveVignette", v)} />
+            <SettingRow label="Darken when tired" description="The screen darkens as you get tired, then locks">
+              <Toggle checked={friction.progressiveVignette} onChange={(v) => friction.update("progressiveVignette", v)} />
             </SettingRow>
-            <SettingRow label="Taper Ambient" description="Warm color shift and grain">
-              <Toggle checked={settings.taperAmbient} onChange={(v) => update("taperAmbient", v)} />
+            <SettingRow label="Warm tint" description="Warms the screen colors as you tire">
+              <Toggle checked={friction.taperAmbient} onChange={(v) => friction.update("taperAmbient", v)} />
             </SettingRow>
-            <SettingRow label="Breathing Visualizer" description="Pulsing rings during recovery">
-              <Toggle checked={settings.breathingVisualizer} onChange={(v) => update("breathingVisualizer", v)} />
+            <SettingRow label="Breathing guide" description="A slow pulse on the task card when focus is low">
+              <Toggle checked={friction.breathingVisualizer} onChange={(v) => friction.update("breathingVisualizer", v)} />
             </SettingRow>
             <div className="text-sm mt-4 mb-2" style={{ color: "#666" }}>Tuning</div>
-            <SettingRow label="Sensitivity" description="How aggressively Friction intervenes">
+            <SettingRow label="Sensitivity" description="How quickly Friction steps in">
               <Slider value={settings.frictionSensitivity} onChange={(v) => update("frictionSensitivity", v)} />
             </SettingRow>
-            <SettingRow label="Recovery Duration (min)" description="Recommended break length">
+            <SettingRow label="Break length (min)" description="How long a suggested break lasts">
               <Slider value={settings.recoveryDuration} onChange={(v) => update("recoveryDuration", v)} min={5} max={30} />
             </SettingRow>
-            <SettingRow label="Intercept Threshold (%)" description="Fatigue % that triggers hard intercept">
-              <Slider value={settings.interceptThreshold} onChange={(v) => update("interceptThreshold", v)} min={80} max={100} />
+            <SettingRow label="Lock at fatigue (%)" description="Fatigue level that locks the screen">
+              <Slider value={friction.interceptThreshold} onChange={(v) => friction.update("interceptThreshold", v)} min={80} max={100} />
             </SettingRow>
           </div>
         );

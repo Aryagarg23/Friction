@@ -18,20 +18,22 @@ interface Track {
 }
 
 const PLAYLISTS = [
-  { id: "focus", name: "Deep Focus", tracks: 42, icon: "🎯" },
-  { id: "lofi", name: "Lo-Fi Beats", tracks: 80, icon: "🎧" },
-  { id: "classical", name: "Classical Focus", tracks: 55, icon: "🎻" },
-  { id: "ambient", name: "Ambient Worlds", tracks: 33, icon: "🌌" },
+  { id: "focus", name: "Deep work", tracks: 42, icon: "🎯" },
+  { id: "40hz", name: "40Hz (desk vibration tests)", tracks: 3, icon: "〰️" },
+  { id: "lofi", name: "lo-fi for calibrating", tracks: 61, icon: "🎧" },
+  { id: "freakoff", name: "HALEY'S FREAKOFF CORNER!!!!", tracks: 27, icon: "🔥" },
+  { id: "storyboard", name: "storyboard —> gradient intro??", tracks: 14, icon: "🌈" },
 ];
 
 const TRACKS: Track[] = [
-  { id: 1, title: "Weightless", artist: "Marconi Union", album: "Weightless", duration: "8:09", durationSec: 489, liked: true },
-  { id: 2, title: "Clair de Lune", artist: "Debussy", album: "Suite bergamasque", duration: "5:12", durationSec: 312, liked: false },
-  { id: 3, title: "Gymnopédie No.1", artist: "Erik Satie", album: "Gymnopédies", duration: "3:29", durationSec: 209, liked: true },
-  { id: 4, title: "Electra", artist: "Airhead", album: "Special", duration: "4:01", durationSec: 241, liked: false },
+  { id: 1, title: "40Hz binaural - desk vibration test", artist: "Arya Garg (local file)", album: "Friction calibration", duration: "4:46", durationSec: 286, liked: true },
+  { id: 2, title: "Weightless", artist: "Marconi Union", album: "Weightless", duration: "8:09", durationSec: 489, liked: true },
+  { id: 3, title: "Clair de Lune", artist: "Debussy", album: "Suite bergamasque", duration: "5:12", durationSec: 312, liked: false },
+  { id: 4, title: "Gymnopédie No.1", artist: "Erik Satie", album: "Gymnopédies", duration: "3:29", durationSec: 209, liked: true },
   { id: 5, title: "Intro", artist: "The xx", album: "xx", duration: "2:07", durationSec: 127, liked: false },
-  { id: 6, title: "Nuvole Bianche", artist: "Ludovico Einaudi", album: "Una Mattina", duration: "5:57", durationSec: 357, liked: true },
-  { id: 7, title: "Experience", artist: "Ludovico Einaudi", album: "In a Time Lapse", duration: "5:15", durationSec: 315, liked: false },
+  { id: 6, title: "Electra", artist: "Airhead", album: "Special", duration: "4:01", durationSec: 241, liked: false },
+  { id: 7, title: "Nuvole Bianche", artist: "Ludovico Einaudi", album: "Una Mattina", duration: "5:57", durationSec: 357, liked: true },
+  { id: 8, title: "Experience", artist: "Ludovico Einaudi", album: "In a Time Lapse", duration: "5:15", durationSec: 315, liked: false },
 ];
 
 export function SpotifyApp() {

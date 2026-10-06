@@ -1,14 +1,13 @@
 /**
  * DRAGGABLE OVERLAY TASK
  *
- * Drag-and-drop task row for the FrictionOverlay TerminalScreen.
- * Uses the "Calm Authority" aesthetic (blue/violet/red dots, DM Sans).
- * Supports reorder within list + cross-list transfer via react-dnd.
+ * One row in a ruled task list on the Plan screen. Rows can be reordered
+ * within a list and dragged between "This session" and "Later" (react-dnd).
  */
 
 import { useRef } from "react";
 import { useDrag, useDrop } from "react-dnd";
-import { ArrowRight, X, GripVertical } from "lucide-react";
+import { ArrowLeft, ArrowRight, X, GripVertical } from "lucide-react";
 import { FRICTION_FONTS, FRICTION_COLORS } from "./friction-styles";
 
 export const ITEM_TYPE = "OVERLAY_TASK";
@@ -26,6 +25,7 @@ interface Props {
     cognitiveWeight: number;
     completed: boolean;
     category: string;
+    estimatedMinutes?: number;
   };
   index: number;
   list: "pool" | "general";
@@ -33,6 +33,15 @@ interface Props {
   onRemove?: (id: string) => void;
   onReorder?: (fromIndex: number, toIndex: number) => void;
 }
+
+const iconButtonStyle: React.CSSProperties = {
+  background: "none",
+  border: "none",
+  padding: 2,
+  lineHeight: 0,
+  color: FRICTION_COLORS.textSecondary,
+  cursor: "pointer",
+};
 
 export function DraggableOverlayTask({
   task,
@@ -52,13 +61,10 @@ export function DraggableOverlayTask({
 
   const [{ isOver }, drop] = useDrop<DragItem, void, { isOver: boolean }>({
     accept: ITEM_TYPE,
-    canDrop: (item) => item.list === list, // Only accept same-list reorders
-    drop(item) {
-      // Cross-list drops: return undefined so react-dnd bubbles to the parent OverlayDropZone
-      if (item.list !== list) return undefined;
-      // Same-list reorder is already handled in hover()
-      return undefined;
-    },
+    canDrop: (item) => item.list === list, // only same-list reorders
+    // Cross-list drops return undefined so they bubble to OverlayDropZone.
+    // Same-list reorder already happened in hover().
+    drop: () => undefined,
     hover(item) {
       if (!ref.current) return;
       if (item.list !== list) return;
@@ -72,85 +78,68 @@ export function DraggableOverlayTask({
   drag(drop(ref));
 
   const isPool = list === "pool";
-  const dotColor =
-    task.category === "deep"
-      ? FRICTION_COLORS.red300
-      : task.category === "moderate"
-        ? FRICTION_COLORS.violet300
-        : FRICTION_COLORS.blue300;
 
   return (
     <div
       ref={ref as any}
-      className="flex items-center gap-2 px-2.5 py-2 rounded-md group"
+      className="flex items-center gap-2 py-2 group"
       style={{
         fontFamily: FRICTION_FONTS.body,
-        fontSize: "0.65rem",
-        color: isPool ? FRICTION_COLORS.textPrimary : FRICTION_COLORS.textSecondary,
-        backgroundColor: isOver
-          ? "rgba(107, 95, 255, 0.08)"
-          : isPool
-            ? "rgba(107, 95, 255, 0.04)"
-            : "rgba(107, 95, 255, 0.02)",
-        borderWidth: 1,
-        borderStyle: "solid",
-        borderColor: isOver
-          ? FRICTION_COLORS.borderActive
-          : isPool
-            ? FRICTION_COLORS.borderDefault
-            : FRICTION_COLORS.borderSubtle,
-        borderRadius: 6,
+        fontSize: "0.8rem",
+        color: FRICTION_COLORS.textPrimary,
+        borderBottom: `1px solid ${FRICTION_COLORS.borderDefault}`,
+        backgroundColor: isOver ? "var(--pi-ink-08)" : "transparent",
         opacity: isDragging ? 0.4 : 1,
         cursor: "grab",
-        transition: "background-color 0.15s, border-color 0.15s",
+        transition: "background-color var(--pi-ease-hover)",
       }}
     >
       <GripVertical
-        size={10}
-        className="shrink-0 opacity-30 group-hover:opacity-60 transition-opacity"
-        style={{ color: FRICTION_COLORS.textMuted }}
+        size={12}
+        aria-hidden
+        className="shrink-0"
+        style={{ color: "var(--pi-ink-20)" }}
       />
 
-      <div
-        className="w-2 h-2 rounded-full shrink-0"
-        style={{ backgroundColor: isPool ? dotColor : "transparent", borderWidth: isPool ? 0 : 1, borderStyle: "solid", borderColor: FRICTION_COLORS.textMuted }}
-      />
+      <span className="truncate flex-1 min-w-0">{task.title}</span>
 
-      <span className="truncate flex-1">{task.title}</span>
-
-      {isPool && (
+      {task.estimatedMinutes != null && (
         <span
+          className="shrink-0"
           style={{
-            fontFamily: FRICTION_FONTS.mono || FRICTION_FONTS.heading,
-            fontSize: "0.45rem",
+            fontFamily: FRICTION_FONTS.mono,
+            fontSize: "0.75rem",
+            fontVariantNumeric: "tabular-nums",
             color: FRICTION_COLORS.textMuted,
           }}
         >
-          {Math.round(task.cognitiveWeight * 100)}
+          {task.estimatedMinutes} min
         </span>
       )}
 
       {onMoveToOther && (
         <button
+          type="button"
           onClick={() => onMoveToOther(task.id)}
-          className="opacity-0 group-hover:opacity-60 hover:!opacity-100 cursor-pointer transition-opacity shrink-0"
-          title={isPool ? "Move back to inbox" : "Move to session pool"}
+          className="shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+          style={{ ...iconButtonStyle, transition: "opacity var(--pi-ease-hover)" }}
+          title={isPool ? "Move to Later" : "Move to this session"}
+          aria-label={isPool ? "Move to Later" : "Move to this session"}
         >
-          <ArrowRight
-            size={10}
-            className={isPool ? "rotate-180" : ""}
-            style={{ color: isPool ? FRICTION_COLORS.textMuted : FRICTION_COLORS.blue300 }}
-          />
+          {isPool ? <ArrowRight size={12} /> : <ArrowLeft size={12} />}
         </button>
       )}
 
       {onRemove && (
         <button
+          type="button"
           onClick={() => onRemove(task.id)}
-          className="opacity-0 group-hover:opacity-40 hover:!opacity-100 cursor-pointer transition-opacity shrink-0"
+          className="shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+          style={{ ...iconButtonStyle, transition: "opacity var(--pi-ease-hover)" }}
           title="Remove"
+          aria-label="Remove"
         >
-          <X size={10} style={{ color: FRICTION_COLORS.red300 }} />
+          <X size={12} />
         </button>
       )}
     </div>
@@ -158,15 +147,18 @@ export function DraggableOverlayTask({
 }
 
 /**
- * Drop zone wrapper for cross-list drops in the overlay.
+ * Drop target for a whole list. Accepts rows from the other list.
+ * forceHighlight lets the parent show the same outline for native text drops.
  */
 export function OverlayDropZone({
   list,
   onDropFromOther,
+  forceHighlight = false,
   children,
 }: {
   list: "pool" | "general";
   onDropFromOther: (id: string) => void;
+  forceHighlight?: boolean;
   children: React.ReactNode;
 }) {
   const [{ isOver, canDrop }, drop] = useDrop<
@@ -185,20 +177,17 @@ export function OverlayDropZone({
     }),
   });
 
-  const highlight = isOver && canDrop;
+  const highlight = forceHighlight || (isOver && canDrop);
 
   return (
     <div
       ref={drop as any}
-      className="space-y-1 min-h-[48px] rounded-md transition-colors"
+      className="min-h-[44px]"
       style={{
-        padding: highlight ? 6 : 2,
-        backgroundColor: highlight ? "rgba(107, 95, 255, 0.1)" : "transparent",
-        borderWidth: 1,
-        borderStyle: "dashed",
-        borderColor: highlight ? FRICTION_COLORS.borderActive : "transparent",
-        borderRadius: 8,
-        boxShadow: highlight ? `inset 0 0 20px ${FRICTION_COLORS.blueGlow}` : "none",
+        borderTop: `1px solid ${FRICTION_COLORS.borderDefault}`,
+        outline: highlight ? `1px solid ${FRICTION_COLORS.textPrimary}` : "1px solid transparent",
+        outlineOffset: 2,
+        transition: "outline-color var(--pi-ease-hover)",
       }}
     >
       {children}

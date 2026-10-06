@@ -1,4 +1,5 @@
 import { motion } from "motion/react";
+import { X } from "lucide-react";
 
 export const BREATHING_HTML = `
 <!DOCTYPE html>
@@ -452,6 +453,7 @@ export function BreathingVisualizer({ onClose }: { onClose: () => void }) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
+      transition={{ duration: 0.34, ease: [0.32, 0.72, 0, 1] }}
       style={{
         position: "fixed",
         inset: 0,
@@ -459,7 +461,7 @@ export function BreathingVisualizer({ onClose }: { onClose: () => void }) {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "rgba(0,0,0,0.85)",
+        background: "color-mix(in srgb, var(--pi-ground) 92%, transparent)",
       }}
       onClick={onClose}
     >
@@ -468,37 +470,36 @@ export function BreathingVisualizer({ onClose }: { onClose: () => void }) {
         style={{
           width: "min(90vw, 720px)",
           height: "min(70vh, 340px)",
-          borderRadius: 16,
           overflow: "hidden",
           position: "relative",
+          border: "1px solid var(--pi-hairline)",
         }}
       >
         <button
           onClick={onClose}
+          aria-label="Close"
+          title="Close"
+          className="pi-btn"
           style={{
             position: "absolute",
             top: 8,
             right: 8,
             zIndex: 10,
-            background: "rgba(255,255,255,0.1)",
-            border: "none",
-            color: "#fff",
-            borderRadius: "50%",
             width: 28,
             height: 28,
-            cursor: "pointer",
-            fontSize: 14,
+            padding: 0,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            backgroundColor: "var(--pi-surface)",
           }}
         >
-          ✕
+          <X size={14} />
         </button>
         <iframe
           srcDoc={BREATHING_HTML}
           style={{ width: "100%", height: "100%", border: "none" }}
-          title="Breathing Exercise"
+          title="Breathing"
           sandbox="allow-scripts"
         />
       </div>
