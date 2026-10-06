@@ -20,47 +20,308 @@ interface Note {
 const INITIAL_NOTES: Note[] = [
   {
     id: "1",
-    title: "Focus Session Log",
-    content: "## March 9, 2026\n\nDeep work session: 2h 45m\n- Focus peaked at 0.91 during code review\n- Fatigue rose sharply after hour 2\n- Taper ambient activated at 1:50\n\n### Observations\nThe progressive vignette was too aggressive. Need to tune the threshold from 0.95 to 0.92 for smoother transitions.\n\n### Next Session\n- Try 90-min blocks with 15-min breaks\n- Disable Slack notifications entirely",
+    title: "FIGBUILD 2026 SELF-CHECK RUBRIC",
+    content: `deadline: Mon March 9 @ 11:00 PM EST
+judges: Meta, Microsoft, Spotify, Google
+
+## MUST-HAVES
+[x] The Target: audience + context
+    -> people in long deep-work blocks. four audiences in Haley's note
+[x] The Sense: a specific, previously unmeasurable sensory experience
+    ("humans have 22–33 distinct senses")
+    -> the felt edge of focus. flow vs the slide into burnout
+[x] The Goal: wellness / behavior change
+    -> protect flow, prevent burn out
+[x] The Mechanics: 3 concrete use cases / stories
+    -> Claudia, Perplexous, Charlie
+[~] The Interface: data collection, visualization, sensory perception/enhancement
+    collection -> SPEM bezel sensors, RF posture, Living Bits patches
+    visualization -> Empathy Mirror / Depth of Field timeline
+    enhancement -> magnetic keys, Peltier keycaps, 40Hz desk haptics
+[~] The Safeguards: privacy, consent, misuse, information overload, emergency protocols
+    privacy -> local only, SNN chip in the keyboard
+    consent -> opt in ("protected brain observation")
+    misuse -> physical kill switch, back to a dumb desk
+    overload -> lies dormant until focus drops
+    emergency protocols -> ??? we don't have one. either design one or say so on the slide (AG)
+
+## JUDGING CRITERIA
+1. Problem-Solution Fit
+2. Innovation & Creativity
+3. Design Execution & UX ("system hygiene")
+4. Craft & Intentionality
+5. Storytelling & Presentation
+
+## Ready to submit?
+poll is up in #general. No votes yet`,
     folder: "Work",
     pinned: true,
-    lastEdited: "Just now",
+    lastEdited: "Mon 6:41 PM",
   },
   {
     id: "2",
-    title: "Friction Design Notes",
-    content: "# Brutalist Tactile Aesthetic\n\n## Core Principles\n- Dark matte black backgrounds (#0a0e14)\n- Amber/orange glowing text (#ffa726)\n- JetBrains Mono everywhere\n- Dune-inspired environmental cues\n\n## Color Palette\n- Primary: #ffa726 (Amber)\n- Accent: #ff6b00 (Deep Orange)\n- Surface: #141925\n- Border: #2a3f5f",
-    folder: "Work",
-    pinned: false,
-    lastEdited: "2h ago",
+    title: "audience research (who is this FOR)",
+    content: `audience research!!! (haley)
+
+1. PhD students / postdocs in computational fields
+- ~100k globally
+- "context recovery tax"
+- live in Jupyter, LaTeX
+- -> Perplexous
+
+2. senior IC / staff+ engineers
+- attention residue
+
+3. freelance writers + creators
+- ~2M
+- "muse detector" (lowkey my fav framing)
+- Substack, Upwork, Gumroad
+- -> Claudia
+
+4. solo trial lawyers
+- ~150k in the US
+- Clio communities
+- "focus prosthetic"
+- -> Charlie (rip Charlie GPT the COO)
+
+whiteboard leftovers:
+freelance creatives + influencers / grad student audience / poten. audience? nerds
+
+idk which one leads the video. storytelling > numbers for these judges imo. They put a strong emphasis on storytelling so thinking about an idea super widely relatable/not overly futuristic?`,
+    folder: "Research",
+    pinned: true,
+    lastEdited: "Mar 8",
   },
   {
     id: "3",
-    title: "Meeting Notes - Sprint 14",
-    content: "# Sprint 14 Planning\n\nAttendees: Sarah, Alex, Mike\n\n## Action Items\n- [ ] Implement breathing visualizer\n- [ ] Fix digital moss particle drift\n- [ ] Test fluid time boundary on mobile\n- [x] Deploy overlay v2 to staging\n\n## Discussion\nTeam agreed to prioritize cognitive load reduction features over new UI polish this sprint.",
-    folder: "Work",
+    title: "Reading: The Extended Mind (Clark & Chalmers)",
+    content: `Andy Clark & David Chalmers, The Extended Mind
+
+Claim: tools used seamlessly become part of the cognitive system.
+
+Otto: has Alzheimer's, keeps addresses in a notebook. Compared with remembering the address from memory. If the notebook does the same job, they say it is part of his mind.
+
+Criteria (all four):
+- constantly accessible
+- automatically trusted
+- easily retrievable
+- consciously endorsed at some point
+
+Modern examples that pass: GPS, smartphone contacts, Google search, collaborative docs.
+
+> Otto's Extended mind hypothesis. I dont necessarily agree with what the paper says here. I do understand that previous "extensions of the mind" were cold storage of information. But I diasgree with them insinuating that this is a boundray which should not be crossed. More to think here.
+
+What this means for Friction:
+- not cold storage. it observes you while you think. by their criteria it becomes part of the system once it's seamless
+- "automatically trusted" is the dangerous one. a tool you trust without checking is the one that can extract
+- so the safeguards are the product: local only, kill switch, Data Burn
+- same question as Clay / Gyrus. protect the thinking or extract it
+
+I need to read this part. takinng a cognitive pause
+I also need to read The Algorithmic Funnel: and beyond`,
+    folder: "Research",
     pinned: false,
-    lastEdited: "Yesterday",
+    lastEdited: "Mar 8",
   },
   {
     id: "4",
-    title: "Book Notes: Deep Work",
-    content: "# Deep Work - Cal Newport\n\n## Key Takeaways\n\n1. **Rule #1**: Work Deeply\n   - Decide on your depth philosophy\n   - Ritualize: where, how long, rules, support\n\n2. **Rule #2**: Embrace Boredom\n   - Don't take breaks from distraction\n   - Take breaks from focus instead\n\n3. **Rule #3**: Quit Social Media\n   - Apply the craftsman approach to tool selection\n\n> \"The ability to perform deep work is becoming increasingly rare at exactly the same time it is becoming increasingly valuable.\"",
-    folder: "Personal",
-    pinned: true,
-    lastEdited: "3 days ago",
+    title: "Reading: neuromorphic chips + SNNs",
+    content: `Neuromorphic chips: hardware that mimics neurons and synapses.
+
+SNNs (spiking neural networks), the "third generation" of neural networks:
+- communicate through discrete spikes
+- information is in the timing and frequency of spikes
+- a neuron only fires with enough input
+
+Why it fits a keyboard:
+- event-driven, not clock-based
+- massively parallel
+- ultra-low power
+- real-time learning
+-> it can run locally. cloud streams = latency + privacy issues
+
+ANN vs SNN
+| | ANN | SNN |
+| signal | continuous values | binary spikes |
+| computation | static | temporal dynamics |
+| energy | high | ultra-low power |
+
+Problems (put these on the slide too):
+- limited tooling
+- hard to train
+- needs new algorithms
+
+Players: Intel (Loihi), IBM (TrueNorth), BrainChip
+
+we are not training one this weekend. prototype simulates the signals, the chip is concept. if a judge asks "what does the SNN actually run" we need a straight answer. open.`,
+    folder: "Research",
+    pinned: false,
+    lastEdited: "Mar 8",
   },
   {
     id: "5",
-    title: "Grocery List",
-    content: "- Oat milk\n- Avocados\n- Sourdough bread\n- Coffee beans (dark roast)\n- Hummus\n- Spinach\n- Chicken breast\n- Rice",
-    folder: "Personal",
+    title: "flow sources (for the science slide)",
+    content: `sources!! (haley) arya wants the actual papers not just summaries, noted
+
+- Frontiers: "The Neuroscience of the Flow State: Involvement of the Locus Coeruleus Norepinephrine System"
+  "Flow is a state of full task engagement that is accompanied with low-levels..."
+  tonic vs phasic norepinephrine!!! two modes
+- Penn Medicine: "Neuroscientists identify brain mechanism that drives focus"
+  key neurons in the front of the brain act as "traffic controllers" <- PITCH LINE
+- Frontiers: "The impacts of mind-wandering on flow"
+- ScienceDirect: task redirection paper (refocusing = half our product)
+
+pitch lines:
+"We need to... Enable the flow state through... Physical and Digital means"
+it senses: chemicals in the brain related to the flow state
+it tracks: focus level you have while completing a goal
+it helps you: stay deeply focused by focusing your attention through task to-do lists and helps you refocus through summaries of your work that decrease the friction of refocusing
+"uses haptic responses which prevents burn out which decreases working time which improves work life balance"`,
+    folder: "Research",
     pinned: false,
-    lastEdited: "1 week ago",
+    lastEdited: "Mar 7",
+  },
+  {
+    id: "6",
+    title: "Mc storyboard",
+    content: `Mc storyboard:
+intro —> just gradient movement
+gradient to color zoom
+pop up keyboard, pop up UX/UI over gradient bg
+login and begin work
+increase of stress + loss of focus, toggles moving
+keyboard + UX/UI blur, security lock pops up
+timer counting down from 37 secs
+20 secs?? (short cut)
+Text on page: Friction --> "insert tagline here"
+
+text reveals:
+"Breathe in, breathe out. notice where your attention lies right now."
+"the elusive, rewarding 'flow state' greets us and departs with ease"
+"the balance between deep work and burn out has kept motivated individuals on their toes for ages"
+final —> "friction is paving the way for people to own their focus and turn it into a tool they can bend to their will"
+
+captions:
+"the product lies dormant until the level of focus has reached unproductive levels. it's time for friction to step in."
+"but it never feels like a punishment, each activity is built to bring a sense of calm and self care."
+"perfection is not the goal"
+"the work needs to get done regardless. friction is the guiding hand to get work done faster, with more intention"
+
+look:
+ink on paper —> review screen
+gradient —> intro
+both?
+tagline???`,
+    folder: "Work",
+    pinned: false,
+    lastEdited: "Mon 1:38 PM",
+  },
+  {
+    id: "7",
+    title: "user journey + microcopy",
+    content: `## SET-UP
+- agrees to sensor analysis
+- connects app
+- picks work type + length
+- lists tasks
+- starts timer
+
+## USE
+- works in focus
+- distraction notifications
+- refocusing
+- keyboard pressure
+- break prompted by keyboard + app
+- brief refocus exercise
+
+## REVIEW
+- reads flow levels
+- adds a small note
+
+## microcopy drafts
+"Right back to the flow- you've got this."
+"We've paused here...let pick back up, together."
+"This one's tough right now. Try [next task]."
+"You're doing great. [Next task] might flow more."
+
+## labels
+refocus sprint / motivational guidance / visual recentering / physical reconnection / flow reflection / mental fatigue / immersive soundscape / reframing tasks / confidence in capabilities / more fulfilling work
+
+(AG) "let pick back up" is a typo or on purpose? leaving it until Miami says`,
+    folder: "Work",
+    pinned: false,
+    lastEdited: "Mar 8",
+  },
+  {
+    id: "8",
+    title: "calibration + hardware",
+    content: `"Two hours into deep work, cognitive walls hit. Eyes drift, breathing shallows, cortisol spikes."
+
+no wearables. the workstation is a contactless monitor.
+
+## three-phase calibration
+1. Visual: SPEM (smooth pursuit eye movements) from the bezel sensors. screen starts in a deliberate Gaussian blur, goes crisp as you track.
+2. Spatial: RF volumetric mesh, shown as a wireframe. no cameras.
+3. Kinetic & Acoustic: stream-of-consciousness typing for keystroke topography, 40Hz, magnetic resistance check.
+
+## sensing
+- bezel sensors: SPEM micro-stutters, gaze drift
+- RF & Wi-Fi posture: dynamic probabilistic models on signal reflections. engaged vs fatigued posture, volumetric difference mapping
+- "Living Bits" microbial patches in the wrist rest: cortisol + adrenaline in sweat
+- local SNN chip in the keyboard
+
+## feedback
+- magnetic switches raise actuation force: "keys become heavier during high arousal to prevent frantic typing"
+- Peltier coolers in keycaps: cooling pulses for grounding, heat as a burnout warning
+- acoustic haptics: sub-perceptual binaural beats through desk vibration, 40Hz tuning
+
+## trigger canvas (set theory)
+drag "High SPEM micro-stutters" to intersect "Slumped Posture" -> link to "Budget Friction" (haptic pulses or magnetic key lockout)
+
+## review: Empathy Mirror / Aperture / Depth of Field
+morning deep work in razor-sharp focus, afternoon burnout as heavy Gaussian blur. analog annotation on paper texture.
+
+## safeguards
+- physical kill switch -> "dumb" desk
+- weekly Data Burn: three-second haptic hold dissolves all biometric data
+- "friction users opt into protected brain observation with all data stored locally to the physical product"
+- prototype note: none of this hardware exists in the demo, signals are simulated`,
+    folder: "Work",
+    pinned: false,
+    lastEdited: "Mar 8",
+  },
+  {
+    id: "9",
+    title: "archetypes",
+    content: `| archetype | name | age | role |
+| Productivitymaxxer | Claudia | 43 | Freelancer |
+| "Burnout"phobic | Perplexous | 26 | PhD Student |
+| Life-Balance Royalty | Charlie GPT | 37 | COO |
+
+demo: Charlie is a solo lawyer now (matches audience #4)
+Claudia -> freelance writers/creators
+Perplexous -> PhD/postdocs, "context recovery tax"`,
+    folder: "Work",
+    pinned: false,
+    lastEdited: "Mar 8",
+  },
+  {
+    id: "10",
+    title: "HALEY'S FREAKOFF CORNER!!!!",
+    content: `HALEY'S FREAKOFF CORNER!!!!
+
+- Nerd alert: in Dune the Bene Gesserit had such a deep control over their bodies they could control things like their metabolism speed/sleep. it also comes with a FIRE aesthetic
+- metrics i wish existed: when people are bullshitting (different than lying) / "it took you half as long to cut those vegetables" / "your body was tired and you listened and didn't over exert yourself on your run"
+- Garmin x Meta ad: "hey meta how many calories have I burned?" personally just PMO (even though research says smartwatches can't accurately track calories)
+- I keep coming back to the idea of unwarranted health anxiety ... idk just word vomit
+- "Hello, MacBook Neo" + adidas Originals "Superstar": both these ads are both just fire. universal human experience + brand identity`,
+    folder: "Drafts",
+    pinned: false,
+    lastEdited: "Mar 7",
   },
 ];
 
-const FOLDERS = ["All Notes", "Work", "Personal"];
+const FOLDERS = ["All Notes", "Work", "Research", "Drafts"];
 
 export function NotesApp() {
   const [notes, setNotes] = useState<Note[]>(INITIAL_NOTES);

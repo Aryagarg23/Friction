@@ -24,34 +24,56 @@ const FILE_TREE: TreeNode[] = [
   {
     name: "src", type: "folder", children: [
       {
-        name: "components", type: "folder", children: [
-          { name: "FocusEngine.tsx", type: "file", lang: "tsx" },
-          { name: "BiometricPanel.tsx", type: "file", lang: "tsx" },
-          { name: "OverlayProvider.tsx", type: "file", lang: "tsx" },
+        name: "app", type: "folder", children: [
+          {
+            name: "context", type: "folder", children: [
+              { name: "BiometricContext.tsx", type: "file", lang: "tsx" },
+              { name: "FrictionSettingsContext.tsx", type: "file", lang: "tsx" },
+              { name: "KeyboardContext.tsx", type: "file", lang: "tsx" },
+              { name: "SessionContext.tsx", type: "file", lang: "tsx" },
+            ],
+          },
+          {
+            name: "engine", type: "folder", children: [
+              { name: "thresholds.ts", type: "file", lang: "ts" },
+              { name: "snn.ts", type: "file", lang: "ts" },
+              { name: "calibration.ts", type: "file", lang: "ts" },
+            ],
+          },
+          {
+            name: "privacy", type: "folder", children: [
+              { name: "dataBurn.ts", type: "file", lang: "ts" },
+            ],
+          },
+          {
+            name: "components", type: "folder", children: [
+              { name: "FrictionOverlay.tsx", type: "file", lang: "tsx" },
+              { name: "FrictionKeyboard.tsx", type: "file", lang: "tsx" },
+              { name: "MirrorPage.tsx", type: "file", lang: "tsx" },
+            ],
+          },
+          { name: "App.tsx", type: "file", lang: "tsx" },
         ],
       },
-      {
-        name: "hooks", type: "folder", children: [
-          { name: "useFocusState.ts", type: "file", lang: "ts" },
-          { name: "useBiometrics.ts", type: "file", lang: "ts" },
-        ],
-      },
-      {
-        name: "utils", type: "folder", children: [
-          { name: "normalize.ts", type: "file", lang: "ts" },
-          { name: "analytics.ts", type: "file", lang: "ts" },
-        ],
-      },
-      { name: "App.tsx", type: "file", lang: "tsx" },
       { name: "main.tsx", type: "file", lang: "tsx" },
-      { name: "types.ts", type: "file", lang: "ts" },
     ],
   },
   { name: "package.json", type: "file", lang: "json" },
-  { name: "tsconfig.json", type: "file", lang: "json" },
   { name: "vite.config.ts", type: "file", lang: "ts" },
   { name: "README.md", type: "file", lang: "md" },
 ];
+
+/** Folder path to a file, for the breadcrumbs. */
+function findPath(name: string, nodes: TreeNode[] = FILE_TREE, trail: string[] = []): string[] | null {
+  for (const node of nodes) {
+    if (node.type === "file" && node.name === name) return trail;
+    if (node.children) {
+      const found = findPath(name, node.children, [...trail, node.name]);
+      if (found) return found;
+    }
+  }
+  return null;
+}
 
 // ── File contents with syntax token hints ───────────────
 interface CodeLine {
@@ -59,116 +81,251 @@ interface CodeLine {
   tokens?: { start: number; end: number; color: string }[];
 }
 
+const KEYWORDS = /\b(import|from|export|default|const|let|function|return|if|else|interface|type|for|of|new|as|true|false|null|void)\b/;
+const TOKEN_RE = new RegExp(
+  [
+    /("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/.source, // 1 strings
+    /(\/\/.*$)/.source,                              // 2 trailing comments
+    KEYWORDS.source,                                 // 3 keywords
+    /\b(\d+(?:\.\d+)?)\b/.source,                    // 4 numbers
+    /\b([A-Z][A-Za-z0-9]+)\b/.source,                // 5 types / components
+  ].join("|"),
+  "g",
+);
+
+/** Tokenize one line for the fake editor: VS Code Dark+ colors. */
+function hl(text: string): CodeLine {
+  const trimmed = text.trimStart();
+  if (trimmed.startsWith("/**") || trimmed.startsWith("*") || trimmed.startsWith("//")) {
+    return { text, tokens: [{ start: 0, end: text.length, color: "#6a9955" }] };
+  }
+  const tokens: CodeLine["tokens"] = [];
+  for (const m of text.matchAll(TOKEN_RE)) {
+    const start = m.index ?? 0;
+    const end = start + m[0].length;
+    const color = m[1] ? "#ce9178" : m[2] ? "#6a9955" : m[3] ? "#569cd6" : m[4] ? "#b5cea8" : "#4ec9b0";
+    tokens.push({ start, end, color });
+  }
+  return { text, tokens };
+}
+
+const file = (src: string): CodeLine[] => src.replace(/^\n/, "").split("\n").map(hl);
+
+/** Markdown: headings blue, everything else plain. */
+const md = (src: string): CodeLine[] =>
+  src.replace(/^\n/, "").split("\n").map((text) =>
+    text.startsWith("#") ? { text, tokens: [{ start: 0, end: text.length, color: "#569cd6" }] } : { text });
+
 const FILE_CONTENTS: Record<string, CodeLine[]> = {
-  "FocusEngine.tsx": [
-    { text: 'import { useState, useEffect, useRef } from "react";', tokens: [{ start: 0, end: 6, color: "#c586c0" }, { start: 48, end: 55, color: "#ce9178" }] },
-    { text: 'import { useBiometrics } from "../hooks/useBiometrics";', tokens: [{ start: 0, end: 6, color: "#c586c0" }, { start: 38, end: 57, color: "#ce9178" }] },
-    { text: "" },
-    { text: "interface FocusEngineProps {", tokens: [{ start: 0, end: 9, color: "#569cd6" }, { start: 10, end: 26, color: "#4ec9b0" }] },
-    { text: "  sensitivity: number;", tokens: [{ start: 2, end: 13, color: "#9cdcfe" }, { start: 15, end: 21, color: "#4ec9b0" }] },
-    { text: "  onStateChange: (state: FocusState) => void;", tokens: [{ start: 2, end: 15, color: "#9cdcfe" }] },
-    { text: "  thresholds?: Partial<ThresholdConfig>;", tokens: [{ start: 2, end: 13, color: "#9cdcfe" }] },
-    { text: "}" },
-    { text: "" },
-    { text: "export function FocusEngine({ sensitivity, onStateChange }: FocusEngineProps) {", tokens: [{ start: 0, end: 6, color: "#c586c0" }, { start: 7, end: 15, color: "#569cd6" }, { start: 16, end: 27, color: "#dcdcaa" }] },
-    { text: "  const { current } = useBiometrics();", tokens: [{ start: 2, end: 7, color: "#569cd6" }, { start: 24, end: 37, color: "#dcdcaa" }] },
-    { text: "  const [focusLevel, setFocusLevel] = useState(0);", tokens: [{ start: 2, end: 7, color: "#569cd6" }, { start: 42, end: 50, color: "#dcdcaa" }] },
-    { text: "  const smoothingRef = useRef(new Float32Array(64));", tokens: [{ start: 2, end: 7, color: "#569cd6" }] },
-    { text: "" },
-    { text: "  // Exponential moving average for focus signal", tokens: [{ start: 0, end: 49, color: "#6a9955" }] },
-    { text: "  useEffect(() => {", tokens: [{ start: 2, end: 11, color: "#dcdcaa" }] },
-    { text: "    const alpha = 0.15 * sensitivity;", tokens: [{ start: 4, end: 9, color: "#569cd6" }, { start: 20, end: 24, color: "#b5cea8" }] },
-    { text: "    const raw = current.focus_percent;", tokens: [{ start: 4, end: 9, color: "#569cd6" }] },
-    { text: "    const smoothed = alpha * raw + (1 - alpha) * focusLevel;", tokens: [{ start: 4, end: 9, color: "#569cd6" }] },
-    { text: "" },
-    { text: "    // Apply batch variance normalization", tokens: [{ start: 0, end: 42, color: "#6a9955" }] },
-    { text: "    const batch_variance_threshold = 0.042;", tokens: [{ start: 4, end: 9, color: "#569cd6" }, { start: 38, end: 43, color: "#b5cea8" }] },
-    { text: "    const normalized = Math.max(0, Math.min(1, smoothed));", tokens: [{ start: 4, end: 9, color: "#569cd6" }] },
-    { text: "" },
-    { text: "    setFocusLevel(normalized);", tokens: [{ start: 4, end: 17, color: "#dcdcaa" }] },
-    { text: "    onStateChange(deriveFocusState(normalized));", tokens: [{ start: 4, end: 17, color: "#dcdcaa" }] },
-    { text: "  }, [current.focus_percent, sensitivity]);", tokens: [{ start: 4, end: 5, color: "#569cd6" }] },
-    { text: "" },
-    { text: "  return (", tokens: [{ start: 2, end: 8, color: "#c586c0" }] },
-    { text: '    <div className="focus-engine-wrapper">', tokens: [{ start: 5, end: 8, color: "#569cd6" }, { start: 20, end: 40, color: "#ce9178" }] },
-    { text: "      <FocusRing intensity={focusLevel} />", tokens: [{ start: 6, end: 16, color: "#4ec9b0" }] },
-    { text: "      <MetricsOverlay data={current} />", tokens: [{ start: 6, end: 20, color: "#4ec9b0" }] },
-    { text: "    </div>", tokens: [{ start: 5, end: 10, color: "#569cd6" }] },
-    { text: "  );" },
-    { text: "}" },
-  ],
-  "App.tsx": [
-    { text: 'import { FocusEngine } from "./components/FocusEngine";', tokens: [{ start: 0, end: 6, color: "#c586c0" }] },
-    { text: 'import { BiometricProvider } from "./context/BiometricContext";', tokens: [{ start: 0, end: 6, color: "#c586c0" }] },
-    { text: 'import { SessionProvider } from "./context/SessionContext";', tokens: [{ start: 0, end: 6, color: "#c586c0" }] },
-    { text: "" },
-    { text: "export default function App() {", tokens: [{ start: 0, end: 6, color: "#c586c0" }, { start: 15, end: 23, color: "#569cd6" }, { start: 24, end: 27, color: "#dcdcaa" }] },
-    { text: "  return (", tokens: [{ start: 2, end: 8, color: "#c586c0" }] },
-    { text: "    <BiometricProvider>", tokens: [{ start: 5, end: 23, color: "#4ec9b0" }] },
-    { text: "      <SessionProvider>", tokens: [{ start: 7, end: 23, color: "#4ec9b0" }] },
-    { text: "        <FocusEngine sensitivity={0.8} />", tokens: [{ start: 9, end: 20, color: "#4ec9b0" }, { start: 34, end: 37, color: "#b5cea8" }] },
-    { text: "      </SessionProvider>", tokens: [{ start: 7, end: 23, color: "#4ec9b0" }] },
-    { text: "    </BiometricProvider>", tokens: [{ start: 5, end: 23, color: "#4ec9b0" }] },
-    { text: "  );" },
-    { text: "}" },
-  ],
-  "normalize.ts": [
-    { text: "/**", tokens: [{ start: 0, end: 3, color: "#6a9955" }] },
-    { text: " * Normalization utilities for biometric signal processing", tokens: [{ start: 0, end: 57, color: "#6a9955" }] },
-    { text: " */", tokens: [{ start: 0, end: 3, color: "#6a9955" }] },
-    { text: "" },
-    { text: "export interface NormalizationConfig {", tokens: [{ start: 0, end: 6, color: "#c586c0" }, { start: 7, end: 16, color: "#569cd6" }] },
-    { text: "  windowSize: number;       // Rolling window in samples" },
-    { text: "  outlierThreshold: number;  // Z-score for outlier rejection" },
-    { text: "  smoothingFactor: number;   // EMA alpha coefficient" },
-    { text: "}" },
-    { text: "" },
-    { text: "export function normalize(", tokens: [{ start: 0, end: 6, color: "#c586c0" }, { start: 7, end: 15, color: "#569cd6" }, { start: 16, end: 25, color: "#dcdcaa" }] },
-    { text: "  signal: Float32Array," },
-    { text: "  config: NormalizationConfig" },
-    { text: "): Float32Array {" },
-    { text: "  const { windowSize, outlierThreshold, smoothingFactor } = config;" },
-    { text: "  const output = new Float32Array(signal.length);" },
-    { text: "" },
-    { text: "  // Pass 1: Z-score outlier rejection", tokens: [{ start: 0, end: 38, color: "#6a9955" }] },
-    { text: "  const mean = signal.reduce((a, b) => a + b, 0) / signal.length;" },
-    { text: "  const variance = signal.reduce((a, b) => a + (b - mean) ** 2, 0) / signal.length;" },
-    { text: "  const stdDev = Math.sqrt(variance);" },
-    { text: "" },
-    { text: "  for (let i = 0; i < signal.length; i++) {", tokens: [{ start: 2, end: 5, color: "#c586c0" }] },
-    { text: "    const zScore = Math.abs((signal[i] - mean) / stdDev);" },
-    { text: "    output[i] = zScore > outlierThreshold ? mean : signal[i];" },
-    { text: "  }" },
-    { text: "" },
-    { text: "  // Pass 2: Exponential moving average", tokens: [{ start: 0, end: 39, color: "#6a9955" }] },
-    { text: "  for (let i = 1; i < output.length; i++) {", tokens: [{ start: 2, end: 5, color: "#c586c0" }] },
-    { text: "    output[i] = smoothingFactor * output[i] + (1 - smoothingFactor) * output[i - 1];" },
-    { text: "  }" },
-    { text: "" },
-    { text: "  return output;" },
-    { text: "}" },
-  ],
-  "package.json": [
-    { text: "{" },
-    { text: '  "name": "friction-companion",', tokens: [{ start: 2, end: 8, color: "#9cdcfe" }, { start: 10, end: 31, color: "#ce9178" }] },
-    { text: '  "version": "2.1.0",', tokens: [{ start: 2, end: 11, color: "#9cdcfe" }, { start: 13, end: 20, color: "#ce9178" }] },
-    { text: '  "private": true,', tokens: [{ start: 2, end: 11, color: "#9cdcfe" }, { start: 13, end: 17, color: "#569cd6" }] },
-    { text: '  "scripts": {', tokens: [{ start: 2, end: 11, color: "#9cdcfe" }] },
-    { text: '    "dev": "vite",', tokens: [{ start: 4, end: 9, color: "#9cdcfe" }, { start: 11, end: 17, color: "#ce9178" }] },
-    { text: '    "build": "tsc && vite build",', tokens: [{ start: 4, end: 11, color: "#9cdcfe" }, { start: 13, end: 32, color: "#ce9178" }] },
-    { text: '    "lint": "eslint . --ext ts,tsx"', tokens: [{ start: 4, end: 10, color: "#9cdcfe" }, { start: 12, end: 34, color: "#ce9178" }] },
-    { text: "  }," },
-    { text: '  "dependencies": {', tokens: [{ start: 2, end: 16, color: "#9cdcfe" }] },
-    { text: '    "react": "^19.0.0",', tokens: [{ start: 4, end: 11, color: "#9cdcfe" }, { start: 13, end: 23, color: "#ce9178" }] },
-    { text: '    "react-dom": "^19.0.0",', tokens: [{ start: 4, end: 15, color: "#9cdcfe" }, { start: 17, end: 27, color: "#ce9178" }] },
-    { text: '    "motion": "^11.0.0"', tokens: [{ start: 4, end: 12, color: "#9cdcfe" }, { start: 14, end: 24, color: "#ce9178" }] },
-    { text: "  }" },
-    { text: "}" },
-  ],
+  "thresholds.ts": file(`
+/**
+ * Focus and fatigue thresholds for the session sub-states.
+ *
+ * These are demo tuning values, not science. Nothing in the Frontiers LC-NE
+ * paper gives a cutoff for flow, so do not cite it as if it does.
+ * The paper is why we care about arousal at all, not where the line is.
+ */
+
+export const FOCUS_INVISIBLE = 0.9;    // above this, Friction stays out of the way
+export const FOCUS_TAPER_LOW = 0.5;
+export const FOCUS_TAPER_HIGH = 0.7;   // product doc says taper is 0.50-0.70
+export const INTERCEPT_FATIGUE = 0.95; // same as interceptThreshold: 95 in settings
+
+export type SubState = "invisible" | "taper" | "recovery" | "return" | "intercept";
+
+export function deriveSubState(focus: number, fatigue: number, justReturned: boolean): SubState {
+  // Intercept wins over everything. Past 0.95 fatigue the focus number
+  // stops meaning much, and the keyboard should get heavy regardless.
+  if (fatigue > INTERCEPT_FATIGUE) return "intercept";
+  if (justReturned) return "return";
+  if (focus > FOCUS_INVISIBLE) return "invisible";
+
+  // The doc never says what 0.70-0.90 is. It falls into taper here.
+  // Flagging it instead of pretending it was designed. More to think here.
+  if (focus >= FOCUS_TAPER_LOW) return "taper";
+  return "recovery";
+}
+`),
+
+  "snn.ts": file(`
+/**
+ * Spike simulation for the keyboard chip.
+ *
+ * This is not a real SNN. It is a leaky integrate-and-fire toy so the demo
+ * can show what a local neuromorphic chip in the keyboard would do:
+ *  - a neuron only fires with enough input
+ *  - the information is in the timing and frequency of spikes
+ *  - event-driven, not clock-based (we are clock-based, because setInterval)
+ *
+ * The real thing would sit on hardware like Intel Loihi, IBM TrueNorth or
+ * BrainChip. Cloud streaming was ruled out: latency, and privacy.
+ */
+
+export interface Neuron {
+  v: number;
+  spikes: number[]; // timestamps in ms
+}
+
+const LEAK = 0.9;        // demo value
+const V_THRESHOLD = 1.0; // demo value
+
+export function step(n: Neuron, input: number, t: number): boolean {
+  n.v = n.v * LEAK + input;
+  if (n.v < V_THRESHOLD) return false; // not enough input, no spike
+  n.v = 0;
+  n.spikes.push(t);
+  return true;
+}
+
+// Downstream reads the spike rate, never the membrane value.
+export function spikeRate(n: Neuron, windowMs: number, now: number): number {
+  const recent = n.spikes.filter((s) => now - s <= windowMs);
+  return recent.length / (windowMs / 1000);
+}
+`),
+
+  "calibration.ts": file(`
+/**
+ * Three-phase calibration.
+ *
+ * FigMake Agent, change log:
+ * 1. Split the single calibration screen into three phases, in this order.
+ * 2. Each phase writes its baseline through \`privacy/dataBurn.ts\` so it
+ *    is stored locally and removed by Data Burn.
+ * 3. No phase makes a network request.
+ */
+
+export const CALIBRATION_PHASES = [
+  {
+    id: "spem",
+    name: "Visual",
+    measures: "Smooth Pursuit Eye Movements: micro-stutters, gaze drift",
+    ui: "deliberate Gaussian blur to crisp",
+  },
+  {
+    id: "rf",
+    name: "Spatial",
+    measures: "RF volumetric mesh: engaged vs fatigued posture, no cameras",
+    ui: "wireframe",
+  },
+  {
+    id: "kinetic",
+    name: "Kinetic & Acoustic",
+    measures: "keystroke topography from stream-of-consciousness typing",
+    ui: "40Hz tuning, magnetic resistance",
+  },
+] as const;
+
+export type PhaseId = (typeof CALIBRATION_PHASES)[number]["id"];
+`),
+
+  "dataBurn.ts": file(`
+/**
+ * Data Burn
+ *
+ * FigMake Agent, change log:
+ * 1. All biometric samples are written to localStorage under one key prefix.
+ * 2. \`burnAll()\` removes every key with that prefix. It does not hide them.
+ * 3. The hold must last 3000 ms. Releasing early cancels the burn.
+ *
+ * There is no network code in this file. If a later change adds any,
+ * this file should be reviewed before anything else.
+ */
+
+const PREFIX = "friction:bio:";
+export const BURN_HOLD_MS = 3000; // the three-second haptic hold
+
+export function saveSample(key: string, sample: unknown): void {
+  localStorage.setItem(PREFIX + key, JSON.stringify(sample));
+}
+
+export function burnAll(): number {
+  const keys = Object.keys(localStorage).filter((k) => k.startsWith(PREFIX));
+  keys.forEach((k) => localStorage.removeItem(k));
+  // Return the count so the UI can say what it burned, not just "done". (Arya)
+  return keys.length;
+}
+
+export function startBurnHold(onBurn: (count: number) => void): () => void {
+  const timer = setTimeout(() => onBurn(burnAll()), BURN_HOLD_MS);
+  return () => clearTimeout(timer); // released early: nothing is deleted
+}
+`),
+
+  "FrictionSettingsContext.tsx": file(`
+/**
+ * FRICTION SETTINGS CONTEXT
+ *
+ * FigMake Agent, change log:
+ * 1. Moved the Settings > Friction toggles here. They used to live in the
+ *    Settings window's own state, which is destroyed when the window closes.
+ * 2. \`interceptThreshold\` is a percent (80-100) to match the slider.
+ * 3. \`interceptFatigue\` exposes it as a 0-1 fraction for \`engine/thresholds.ts\`.
+ */
+
+export interface FrictionSettings {
+  frictionEnabled: boolean;
+  progressiveVignette: boolean;
+  breathingVisualizer: boolean;
+  /** Fatigue percent (80-100) above which the hard intercept starts. */
+  interceptThreshold: number;
+}
+
+export const DEFAULT_FRICTION_SETTINGS: FrictionSettings = {
+  frictionEnabled: true,
+  progressiveVignette: true,
+  breathingVisualizer: true,
+  interceptThreshold: 95,
+};
+`),
+
+  "README.md": md(`
+# Friction
+
+Fig Build 2026. Arya Garg, Haley Potter, Miami Celentana, built with Figma Make.
+
+Enable the flow state through physical and digital means.
+
+## Run
+
+    npm i
+    npm run dev
+
+## What is real and what is mocked
+
+- The biometric signals are scripted personas. There are no sensors in this repo.
+- The SNN is a leaky integrate-and-fire toy, not neuromorphic hardware.
+- Everything is stored locally. Data Burn deletes it, it does not hide it.
+
+## Still open
+
+- Focus between 0.70 and 0.90 has no state of its own (see engine/thresholds.ts).
+- "it senses: chemicals in the brain" overstates what the wrist rest reads.
+- Extended Mind: I dont agree that it is a boundary. More to think here.
+`),
+
+  "package.json": file(`
+{
+  "name": "@figma/my-make-file",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite"
+  },
+  "dependencies": {
+    "lucide-react": "0.487.0",
+    "motion": "12.23.24",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  }
+}
+`),
 };
 
-// ── Default file to open ──────────────────────
-const DEFAULT_FILES = ["FocusEngine.tsx", "App.tsx"];
+// ── Default files to open ──────────────────────
+const DEFAULT_FILES = ["thresholds.ts", "snn.ts", "dataBurn.ts"];
 
 function findFileContent(name: string): CodeLine[] {
   return FILE_CONTENTS[name] || [{ text: `// ${name}` }, { text: "// File contents not loaded" }];
@@ -290,16 +447,17 @@ function TreeItem({
 }
 
 // ── Problems data ───────────────────────────────────
-const PROBLEMS = [
-  { file: "KeyboardContext.tsx", line: 44, type: "warning" as const, msg: "Setter functions wrapped in useCallback — verify [] deps are intentional (fixes infinite loop)." },
-  { file: "MirrorPage.tsx", line: 4, type: "info" as const, msg: "InsightCard import restored — was dropped during iteration 4 rewrite." },
-  { file: "FrictionKeyboard.tsx", line: 178, type: "info" as const, msg: "'temperature' field now wired — derives from fatigue (0 → +4°C)." },
-];
+const PROBLEMS: { file: string; line: number; type: "error" | "warning" | "info"; msg: string }[] = [
+  { file: "FrictionOverlay.tsx", line: 195, type: "error", msg: "',' expected. ts(1005)" },
+  { file: "KeyboardContext.tsx", line: 50, type: "warning", msg: "React Hook useCallback has a missing dependency: 'state'. Either include it or remove the dependency array. eslint(react-hooks/exhaustive-deps)" },
+  { file: "thresholds.ts", line: 11, type: "warning", msg: "'FOCUS_TAPER_HIGH' is declared but its value is never read. ts(6133)" },
+  { file: "MirrorPage.tsx", line: 4, type: "info", msg: "Import 'InsightCard' restored from './InsightCard'." },
+]
 
 export function VSCodeApp() {
   const [openTabs, setOpenTabs] = useState<string[]>(DEFAULT_FILES);
   const [activeTab, setActiveTab] = useState(DEFAULT_FILES[0]);
-  const [expanded, setExpanded] = useState<Set<string>>(new Set(["src", "components", "utils"]));
+  const [expanded, setExpanded] = useState<Set<string>>(new Set(["src", "app", "engine", "privacy"]));
   const [showProblems, setShowProblems] = useState(false);
 
   const toggleExpanded = (path: string) => {
@@ -376,7 +534,7 @@ export function VSCodeApp() {
             Explorer
           </div>
           <div className="text-xs uppercase px-3 py-1" style={{ color: "#cccccc", fontSize: "11px" }}>
-            friction-companion
+            friction
           </div>
           {FILE_TREE.map((node) => (
             <TreeItem
@@ -428,10 +586,12 @@ export function VSCodeApp() {
             className="flex items-center gap-1 px-4 text-xs shrink-0"
             style={{ height: "22px", backgroundColor: "#1e1e1e", color: "#969696" }}
           >
-            <span>src</span>
-            <ChevronRight size={10} />
-            <span>components</span>
-            <ChevronRight size={10} />
+            {(findPath(activeTab) ?? []).map((seg) => (
+              <React.Fragment key={seg}>
+                <span>{seg}</span>
+                <ChevronRight size={10} />
+              </React.Fragment>
+            ))}
             <span style={{ color: "#cccccc" }}>{activeTab}</span>
           </div>
 
@@ -502,8 +662,8 @@ export function VSCodeApp() {
               key={i}
               className="flex items-center gap-2 px-4 py-1.5 text-xs hover:bg-[#2a2d2e] cursor-pointer"
             >
-              <span style={{ color: p.type === "warning" ? "#cca700" : "#3794ff" }}>
-                {p.type === "warning" ? "⚠" : "ℹ"}
+              <span style={{ color: p.type === "error" ? "#f14c4c" : p.type === "warning" ? "#cca700" : "#3794ff" }}>
+                {p.type === "error" ? "⊗" : p.type === "warning" ? "⚠" : "ℹ"}
               </span>
               <span style={{ color: "#cccccc" }}>{p.msg}</span>
               <span className="ml-auto" style={{ color: "#858585" }}>
@@ -528,7 +688,8 @@ export function VSCodeApp() {
             <GitBranch size={12} /> main
           </span>
           <span className="flex items-center gap-1">
-            <span style={{ color: "#ffcc00" }}>⚠</span> {PROBLEMS.filter(p => p.type === "warning").length}
+            <span style={{ color: "#f14c4c" }}>⊗</span> {PROBLEMS.filter(p => p.type === "error").length}
+            <span className="ml-1" style={{ color: "#ffcc00" }}>⚠</span> {PROBLEMS.filter(p => p.type === "warning").length}
             <span className="ml-1" style={{ color: "#75beff" }}>ℹ</span> {PROBLEMS.filter(p => p.type === "info").length}
           </span>
         </div>

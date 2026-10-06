@@ -11,34 +11,65 @@ import { ChevronLeft, ChevronRight, Plus, X, Clock, MapPin } from "lucide-react"
 interface CalendarEvent {
   id: number;
   title: string;
-  time: string;
-  endTime: string;
+  time: string;    // 24h "HH:MM"
+  endTime: string; // 24h "HH:MM"
   color: string;
   location?: string;
+  notes?: string;  // Event description, written by whoever made the event
   day: number; // Day of month
 }
 
-// March 2026 events
+// The real sprint: Fri March 6 to the Fig Build deadline, Mon March 9 2026, 11:00 PM EST.
 const EVENTS: CalendarEvent[] = [
-  { id: 1, title: "Team Standup — FigBuild Sprint", time: "9:00", endTime: "9:15", color: "#4285f4", day: 9 },
-  { id: 2, title: "Demo Video Recording", time: "10:30", endTime: "12:00", color: "#ea4335", location: "Zoom", day: 9 },
-  { id: 3, title: "Final Polish + Easter Eggs", time: "1:00", endTime: "3:00", color: "#fbbc04", day: 9 },
-  { id: 4, title: "Submission Deadline 11PM EST", time: "8:00", endTime: "11:00", color: "#d50000", day: 9 },
-  { id: 5, title: "Deep Work — Keyboard Lethargy System", time: "2:00", endTime: "5:00", color: "#8e24aa", day: 8 },
-  { id: 6, title: "Design Review w/ Miami", time: "12:30", endTime: "1:30", color: "#039be5", location: "Figma", day: 8 },
-  { id: 7, title: "Research Sync w/ Haley", time: "3:00", endTime: "4:00", color: "#34a853", location: "Zoom", day: 8 },
-  { id: 8, title: "Product Doc v4 Review", time: "8:00", endTime: "10:00", color: "#8e24aa", day: 7 },
-  { id: 9, title: "Persona Engine Build Session", time: "11:00", endTime: "2:00", color: "#4285f4", location: "FigMake + Arya", day: 7 },
-  { id: 10, title: "Brutalist Tactile Moodboard", time: "1:00", endTime: "3:00", color: "#f4511e", location: "FigJam", day: 6 },
-  { id: 11, title: "LC-NE Research Deep Dive", time: "4:00", endTime: "5:30", color: "#34a853", day: 6 },
-  { id: 12, title: "FigBuild Kickoff — Concept Lock", time: "9:00", endTime: "11:00", color: "#4285f4", day: 5 },
+  // Mon Mar 9 (today), in time order so "Upcoming" reads top to bottom
+  { id: 1, title: "Calibration flow review", time: "09:00", endTime: "10:00", color: "#4285f4", location: "Zoom", day: 9,
+    notes: "Walk all three phases end to end: SPEM (blur to crisp), RF volumetric mesh, keystroke topography. Intercept threshold stays at 0.95 unless someone has a reason. Bring the reason." },
+  { id: 2, title: "Judges strategy", time: "11:00", endTime: "11:30", color: "#e91e63", day: 9,
+    notes: "judges from Meta, Microsoft, Spotify, and Google!!! they put a strong emphasis on storytelling so lead with the story not the sensors (sorry arya)" },
+  { id: 3, title: "Record demo video", time: "14:00", endTime: "17:00", color: "#7c4dff", day: 9,
+    notes: "intro —> gradient movement only\nkeyboard + UX/UI blur —> security lock pops up\ntimer counting down from 37 secs\ncaption: \"perfection is not the goal\"\ntagline??" },
+  { id: 4, title: "Rubric self-check", time: "19:00", endTime: "20:00", color: "#34a853", location: "FigJam", day: 9,
+    notes: "Target, Sense, Goal, Mechanics, Interface, Safeguards. Ready to submit? poll is still at No votes yet." },
+  { id: 5, title: "Fig Build submission deadline 11:00 PM EST", time: "23:00", endTime: "23:30", color: "#d50000", day: 9,
+    notes: "Monday, March 9th @ 11:00 PM EST" },
+
+  // Sun Mar 8
+  { id: 6, title: "Storyboard pass (Miami)", time: "10:00", endTime: "12:00", color: "#7c4dff", location: "Figma", day: 8,
+    notes: "gradient —> color zoom\npop up keyboard, pop up UX/UI over gradient bg\nlogin + begin work\nstress up, focus down —> toggles moving\n37 secs or 20 secs??" },
+  { id: 7, title: "Build: calibration flow", time: "13:00", endTime: "17:00", color: "#00897b", location: "Figma Make", day: 8,
+    notes: "Arya + FigMake Agent. Three-phase calibration: Visual, Spatial, Kinetic & Acoustic. Everything stays local. No network calls in the calibration path." },
+  { id: 8, title: "Product doc v3 -> v4", time: "20:00", endTime: "21:30", color: "#e91e63", day: 8,
+    notes: "fold in arya's comments + the lawyer audience + charlie rename. FREAKOFF CORNER stays at the bottom, non negotiable" },
+
+  // Sat Mar 7
+  { id: 9, title: "Research sync", time: "10:00", endTime: "11:30", color: "#34a853", location: "Zoom", day: 7,
+    notes: "flow neuroscience (frontiers LC-NE paper, tonic vs phasic norepinephrine!!), penn medicine traffic controllers thing, audiences. bring links!!!!" },
+  { id: 10, title: "Extended Mind reading", time: "13:00", endTime: "14:00", color: "#00897b", day: 7,
+    notes: "Clark & Chalmers. Otto and the notebook. I want to understand the four criteria before we put the paper in the deck." },
+  { id: 11, title: "Moodboard: ink on paper vs gradient", time: "15:00", endTime: "16:30", color: "#7c4dff", location: "Pinterest", day: 7,
+    notes: "ink on paper?\ngradient?\nboth —> depth of field timeline??" },
+  { id: 12, title: "Product doc v1 -> v2", time: "18:00", endTime: "20:00", color: "#e91e63", day: 7 },
+
+  // Fri Mar 6
+  { id: 13, title: "Brain dumps due", time: "17:00", endTime: "18:00", color: "#fbbc04", day: 6,
+    notes: "everyone dumps every sense idea. no filtering. humans have 22–33 distinct senses, pick one nobody measures" },
+  { id: 14, title: "Concept sync", time: "19:00", endTime: "20:30", color: "#4285f4", location: "Zoom", day: 6,
+    notes: "Same question as Clay/Gyrus: how does a tool protect thinking instead of extracting it." },
 ];
+
+/** "14:00" -> "2:00 PM" */
+function fmt(t: string): string {
+  const [h, m] = t.split(":").map(Number);
+  const suffix = h >= 12 ? "PM" : "AM";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${m.toString().padStart(2, "0")} ${suffix}`;
+}
 
 // March 2026 starts on a Sunday
 const MARCH_2026_START_DAY = 0; // 0 = Sunday
 const DAYS_IN_MARCH = 31;
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const TIME_SLOTS = Array.from({ length: 14 }, (_, i) => i + 7); // 7 AM to 8 PM
+const TIME_SLOTS = Array.from({ length: 17 }, (_, i) => i + 7); // 7 AM to 11 PM (the deadline lives at 11)
 
 type ViewMode = "month" | "day";
 
@@ -199,7 +230,7 @@ export function CalendarApp() {
                   <div>
                     <div className="text-xs" style={{ color: "#3c4043" }}>{event.title}</div>
                     <div className="text-xs" style={{ color: "#70757a" }}>
-                      Mar {event.day} · {event.time}
+                      Mar {event.day} · {fmt(event.time)}
                     </div>
                   </div>
                 </div>
@@ -251,7 +282,7 @@ export function CalendarApp() {
                               className="text-xs px-1 py-0.5 rounded mb-0.5 truncate"
                               style={{ backgroundColor: `${ev.color}20`, color: ev.color }}
                             >
-                              {ev.time} {ev.title}
+                              {fmt(ev.time)} {ev.title}
                             </div>
                           ))}
                           {dayEvents.length > 3 && (
@@ -325,13 +356,18 @@ export function CalendarApp() {
                     >
                       <div className="text-sm" style={{ fontWeight: 500 }}>{event.title}</div>
                       <div className="flex items-center gap-2 text-xs mt-0.5" style={{ opacity: 0.8 }}>
-                        <span>{event.time} – {event.endTime}</span>
+                        <span>{fmt(event.time)} – {fmt(event.endTime)}</span>
                         {event.location && (
                           <span className="flex items-center gap-0.5">
                             <MapPin size={10} /> {event.location}
                           </span>
                         )}
                       </div>
+                      {event.notes && (
+                        <div className="text-xs mt-1 whitespace-pre-line" style={{ color: "#3c4043", opacity: 0.85 }}>
+                          {event.notes}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
