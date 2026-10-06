@@ -10,6 +10,7 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useSession } from "../../context/SessionContext";
+import { useFrictionSettings } from "../../context/FrictionSettingsContext";
 import { FRICTION_FONTS, FRICTION_COLORS } from "../friction-app/friction-styles";
 
 interface Props {
@@ -25,7 +26,8 @@ export function PeekCard({ focus }: Props) {
   const activeTasks = tasks.filter(t => !t.completed);
   const [isHovered, setIsHovered] = useState(false);
 
-  const isBreathing = focus <= 0.50;
+  const { breathingVisualizer } = useFrictionSettings();
+  const isBreathing = breathingVisualizer && focus <= 0.50;
 
   // Breathing ball phase calculation
   const breathPhase = useMemo(() => {

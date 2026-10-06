@@ -10,6 +10,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useBiometrics } from "../../context/BiometricContext";
 import { usePersona } from "../../context/PersonaContext";
 import { useSession } from "../../context/SessionContext";
+import { useFrictionSettings } from "../../context/FrictionSettingsContext";
 import { useWindowManager } from "../../context/WindowManagerContext";
 import { usePersonaSimulation } from "../../hooks/usePersonaSimulation";
 import { ALL_PERSONAS, type BiometricPattern } from "../../data/personas";
@@ -47,6 +48,7 @@ export function ControlPanel() {
   const { current: biometrics, setCurrent, simulateGradualChange, setBiometrics } = useBiometrics();
   const { currentPersona, setPersona, currentStoryBeatIndex } = usePersona();
   const { startSession, sessionState, triggerStrike, activateMoss, activeScreenNumber, forceScreen } = useSession();
+  const { interceptFatigue } = useFrictionSettings();
   const { closeAllWindows } = useWindowManager();
   const [isExpanded, setIsExpanded] = useState(true);
   const [showTimeline, setShowTimeline] = useState(false);
@@ -269,7 +271,7 @@ export function ControlPanel() {
   const getScreen2SubState = (): { label: string; code: string; color: string } => {
     const focus = biometrics.focus_percent;
     const fatigue = biometrics.fatigue_percent;
-    if (fatigue > 0.95) return { label: "Hard Intercept", code: "2.6", color: "#ef4444" };
+    if (fatigue > interceptFatigue) return { label: "Hard Intercept", code: "2.6", color: "#ef4444" };
     if (focus > 0.80) return { label: "Flow Pill", code: "2.1", color: "#4ade80" };
     if (focus > 0.50) return { label: "Peek Card", code: "2.3", color: "#60a5fa" };
     if (focus > 0.30) return { label: "Peek + Breathing", code: "2.4", color: "#f59e0b" };

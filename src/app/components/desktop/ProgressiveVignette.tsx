@@ -10,6 +10,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useBiometrics } from "../../context/BiometricContext";
 import { useSession } from "../../context/SessionContext";
+import { useFrictionSettings } from "../../context/FrictionSettingsContext";
 import { FRICTION_FONTS, FRICTION_COLORS } from "../friction-app/friction-styles";
 
 interface Props {
@@ -22,7 +23,8 @@ const NOISE_SVG = `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='h
 export function ProgressiveVignette({ intensity }: Props) {
   const { current: biometrics } = useBiometrics();
   const { forceScreen } = useSession();
-  const isCritical = biometrics.fatigue_percent >= 0.98;
+  const { interceptFatigue } = useFrictionSettings();
+  const isCritical = biometrics.fatigue_percent > interceptFatigue;
   const [transitioning, setTransitioning] = useState(false);
 
   // Mouse tracking for fog clearing

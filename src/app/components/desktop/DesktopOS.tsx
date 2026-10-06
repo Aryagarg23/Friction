@@ -15,6 +15,7 @@
 import { useWindowManager } from "../../context/WindowManagerContext";
 import { useBiometrics } from "../../context/BiometricContext";
 import { useSession } from "../../context/SessionContext";
+import { useFrictionSettings } from "../../context/FrictionSettingsContext";
 import { useState, useCallback } from "react";
 import { Window } from "./Window";
 import { Dock } from "./Dock";
@@ -109,7 +110,11 @@ export function DesktopOS() {
 
   const focus = biometrics.focus_percent;
   const fatigue = biometrics.fatigue_percent;
-  const isActive = sessionState === "active";
+  const fx = useFrictionSettings();
+  // Every Friction effect needs an active session and the master switch.
+  const isActive = sessionState === "active" && fx.frictionEnabled;
+  const mossShown = mossActive && fx.frictionEnabled && fx.digitalMoss;
+  const interceptActive = isActive && fx.progressiveVignette && fatigue > fx.interceptFatigue;
 
   // ── Continuous brightness as a function of focus ──
   // High focus = full brightness (user is working, don't dim)
@@ -119,7 +124,7 @@ export function DesktopOS() {
     : 1.0;
 
   // ── Taper Ambient: warm color shift when focus 0.50-0.70 and fatigue rising ──
-  const isTapering = isActive && focus >= 0.40 && focus <= 0.70 && fatigue > 0.45;
+  const isTapering = isActive && fx.taperAmbient && focus >= 0.40 && focus <= 0.70 && fatigue > 0.45;
   const taperIntensity = isTapering
     ? Math.min(1, (fatigue - 0.45) / 0.4) * (1 - Math.abs(focus - 0.55) / 0.25)
     : 0;
@@ -260,19 +265,19 @@ export function DesktopOS() {
       {/* OS-level Friction effects */}
 
       {/* Focus Indicator — pill (>0.80) morphs to peek card (0.30–0.80) */}
-      {isActive && focus > 0.30 && !mossActive && (
+      {isActive && focus > 0.30 && !mossShown && (
         <FocusIndicator focus={focus} />
       )}
 
-      {/* Refocus Popup — 3 exercise options when focus < 0.30; hidden under the hard intercept (fatigue > 0.95) */}
+      {/* Refocus Popup — 3 exercise options when focus < 0.30; hidden under the hard intercept */}
       <AnimatePresence>
-        {isActive && focus <= 0.30 && fatigue <= 0.95 && !mossActive && (
+        {isActive && focus <= 0.30 && !interceptActive && !mossShown && (
           <RefocusPopup />
         )}
       </AnimatePresence>
 
       {/* Neural Residue — canvas overlay on return from interruption */}
-      {mossActive && (
+      {mossShown && (
         <DigitalMoss
           keywords={mossKeywords}
           onClear={clearMoss}
@@ -280,7 +285,7 @@ export function DesktopOS() {
       )}
 
       {/* Tactile Strike — glassmorphic ripple on task completion */}
-      {tactileStrikeData && (
+      {tactileStrikeData && fx.frictionEnabled && fx.tactileStrike && (
         <TactileStrike
           completedTask={tactileStrikeData.completed}
           nextTask={tactileStrikeData.next}
@@ -289,7 +294,7 @@ export function DesktopOS() {
 
       {/* Progressive Vignette — starts at fatigue 50%, increases to 100% */}
       <AnimatePresence>
-        {isActive && fatigue > 0.50 && (
+        {isActive && fx.progressiveVignette && fatigue > 0.50 && (
           <motion.div
             key="progressive-vignette"
             className="absolute inset-0"

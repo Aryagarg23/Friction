@@ -14,6 +14,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useBiometrics } from "../../context/BiometricContext";
+import { useFrictionSettings } from "../../context/FrictionSettingsContext";
 import { useKeyboard, type KeyboardResistance, type KeyboardRGBMode } from "../../context/KeyboardContext";
 import { Volume2, VolumeX, Keyboard, Thermometer } from "lucide-react";
 
@@ -91,23 +92,23 @@ const BINAURAL_PROFILES: Record<string, { base: number; beat: number; label: str
 // ──────────────────────────────────────────────
 //  HELPERS — derive keyboard state from biometrics
 // ──────────────────────────────────────────────
-function deriveResistance(fatigue: number): KeyboardResistance {
-  if (fatigue > 0.95) return "locked";
+function deriveResistance(fatigue: number, lockFatigue: number): KeyboardResistance {
+  if (fatigue > lockFatigue) return "locked";
   if (fatigue > 0.75) return "heavy";
   if (fatigue > 0.50) return "spongy";
   return "normal";
 }
 
-function deriveRGB(focus: number, fatigue: number): KeyboardRGBMode {
-  if (fatigue > 0.95) return "red-alert";
+function deriveRGB(focus: number, fatigue: number, lockFatigue: number): KeyboardRGBMode {
+  if (fatigue > lockFatigue) return "red-alert";
   if (fatigue > 0.70) return "pulsing";
   if (focus > 0.80)  return "amber-glow";
   if (focus < 0.30)  return "dim";
   return "neutral";
 }
 
-function deriveBinauralProfile(focus: number, fatigue: number): string {
-  if (fatigue > 0.95) return "delta";
+function deriveBinauralProfile(focus: number, fatigue: number, lockFatigue: number): string {
+  if (fatigue > lockFatigue) return "delta";
   if (fatigue > 0.70) return "theta";
   if (focus > 0.85)  return "gamma";
   if (focus > 0.55)  return "beta";
@@ -185,6 +186,7 @@ function breatheSpeed(fatigue: number): number {
 // ──────────────────────────────────────────────
 export function FrictionKeyboard() {
   const { current: bio } = useBiometrics();
+  const { interceptFatigue } = useFrictionSettings();
   const { state: kbState, setResistance, setRGBMode, setBinaural, setTemperature } = useKeyboard();
 
   const [pressedKeys, setPressedKeys] = useState<Set<string>>(new Set());
@@ -203,15 +205,15 @@ export function FrictionKeyboard() {
 
   // ── Always derive keyboard state from biometrics ──────
   useEffect(() => {
-    const resistance = deriveResistance(fatigue);
-    const rgb = deriveRGB(focus, fatigue);
-    const binProfile = deriveBinauralProfile(focus, fatigue);
+    const resistance = deriveResistance(fatigue, interceptFatigue);
+    const rgb = deriveRGB(focus, fatigue, interceptFatigue);
+    const binProfile = deriveBinauralProfile(focus, fatigue, interceptFatigue);
     const temp = deriveTemperature(fatigue);
     setResistance(resistance);
     setRGBMode(rgb);
     setBinaural(BINAURAL_PROFILES[binProfile].beat);
     setTemperature(temp);
-  }, [focus, fatigue, setResistance, setRGBMode, setBinaural, setTemperature]);
+  }, [focus, fatigue, interceptFatigue, setResistance, setRGBMode, setBinaural, setTemperature]);
 
   // ── Real keyboard event listeners ─────────────────────
   useEffect(() => {
@@ -309,10 +311,10 @@ export function FrictionKeyboard() {
   // Update binaural frequency when state changes
   useEffect(() => {
     if (!audioCtxRef.current || !oscRRef.current) return;
-    const profile = BINAURAL_PROFILES[deriveBinauralProfile(focus, fatigue)];
+    const profile = BINAURAL_PROFILES[deriveBinauralProfile(focus, fatigue, interceptFatigue)];
     oscLRef.current!.frequency.setTargetAtTime(profile.base, audioCtxRef.current.currentTime, 0.5);
     oscRRef.current.frequency.setTargetAtTime(profile.base + profile.beat, audioCtxRef.current.currentTime, 0.5);
-  }, [focus, fatigue]);
+  }, [focus, fatigue, interceptFatigue]);
 
   // Adjust volume — lower when fatigued (mimics sluggishness)
   useEffect(() => {
@@ -329,9 +331,9 @@ export function FrictionKeyboard() {
   useEffect(() => stopAudio, [stopAudio]);
 
   // ── Derived display values ────────────────────────────
-  const resistance = deriveResistance(fatigue);
-  const rgb = deriveRGB(focus, fatigue);
-  const binProfile = deriveBinauralProfile(focus, fatigue);
+  const resistance = deriveResistance(fatigue, interceptFatigue);
+  const rgb = deriveRGB(focus, fatigue, interceptFatigue);
+  const binProfile = deriveBinauralProfile(focus, fatigue, interceptFatigue);
   const binInfo = BINAURAL_PROFILES[binProfile];
   const rInfo = resistanceLabel(resistance);
   const temperature = deriveTemperature(fatigue);

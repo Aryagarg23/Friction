@@ -13,6 +13,7 @@
  */
 
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import { useFrictionSettings } from "../../context/FrictionSettingsContext";
 import { motion, AnimatePresence } from "motion/react";
 import { useDrop } from "react-dnd";
 import { useBiometricsSafe } from "../../context/BiometricContext";
@@ -63,12 +64,14 @@ function FrictionDiamond({ size = 10, glow = false }: { size?: number; glow?: bo
 
 export function FrictionOverlay() {
   const bioCtx = useBiometricsSafe();
-  if (!bioCtx) return null;
+  const { frictionEnabled, frictionOverlay } = useFrictionSettings();
+  if (!bioCtx || !frictionEnabled || !frictionOverlay) return null;
   return <FrictionOverlayInner bioCtx={bioCtx} />;
 }
 
 function FrictionOverlayInner({ bioCtx }: { bioCtx: ReturnType<typeof useBiometricsSafe> & {} }) {
   const { current: biometrics, history } = bioCtx;
+  const { interceptFatigue } = useFrictionSettings();
   const {
     sessionState, tasks, generalTasks, currentTaskIndex,
     triggerStrike, startSession, endSession,
@@ -142,7 +145,7 @@ function FrictionOverlayInner({ bioCtx }: { bioCtx: ReturnType<typeof useBiometr
 
   // overlayParams kept for control panel sub-state derivation
   const overlayParams = useMemo(() => {
-    if (!isActive || fatigue > 0.95)
+    if (!isActive || fatigue > interceptFatigue)
       return { opacity: 0, width: 0, visible: false, mode: "hidden" as const };
     if (focus > 0.90 && fatigue < 0.40)
       return { opacity: 0, width: 0, visible: false, mode: "invisible" as const };
@@ -157,7 +160,7 @@ function FrictionOverlayInner({ bioCtx }: { bioCtx: ReturnType<typeof useBiometr
       return { opacity: 0.75, width: 260, visible: true, mode: "moderate" as const };
     }
     return { opacity: 0.9, width: 280, visible: true, mode: "recovery" as const };
-  }, [focus, fatigue, isActive]);
+  }, [focus, fatigue, isActive, interceptFatigue]);
 
   // ══════════════════════════════════════════════════════════
   //  FULL-SCREEN / SPLIT: Terminal or Mirror
@@ -458,10 +461,12 @@ function BoxBreathingIndicator() {
 //  SCREEN 1: TERMINAL — Moon Pool + General Task List
 // ══════════════════════════════════════════════════════════════
 
+type TerminalTask = { id: string; title: string; cognitiveWeight: number; completed: boolean; category: string };
+
 interface TerminalProps {
-  tasks: { id: string; title: string; cognitiveWeight: number; completed: boolean; category: string }[];
-  generalTasks: typeof tasks;
-  activeTasks: typeof tasks;
+  tasks: TerminalTask[];
+  generalTasks: TerminalTask[];
+  activeTasks: TerminalTask[];
   sessionDurationMin: number;
   setSessionDurationMin: (v: number) => void;
   onImmerse: () => void;

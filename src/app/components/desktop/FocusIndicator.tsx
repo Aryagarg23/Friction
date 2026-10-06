@@ -10,6 +10,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Check } from "lucide-react";
 import { useSession } from "../../context/SessionContext";
+import { useFrictionSettings } from "../../context/FrictionSettingsContext";
 import { FRICTION_FONTS, FRICTION_COLORS, GRAIN_OVERLAY_STYLE } from "../friction-app/friction-styles";
 import { useGlobalBreath } from "./useGlobalBreath";
 
@@ -28,7 +29,8 @@ export function FocusIndicator({ focus }: Props) {
   const nextTask = activeTasks[1];
 
   const isPill = focus > 0.80;
-  const isBreathing = focus <= 0.50;
+  const { breathingVisualizer } = useFrictionSettings();
+  const isBreathing = breathingVisualizer && focus <= 0.50;
 
   // Pill hover state
   const [hoverExpanded, setHoverExpanded] = useState(false);

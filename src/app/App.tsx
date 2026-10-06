@@ -3,6 +3,7 @@ import { SessionProvider } from "./context/SessionContext";
 import { WindowManagerProvider } from "./context/WindowManagerContext";
 import { BiometricProvider } from "./context/BiometricContext";
 import { KeyboardProvider } from "./context/KeyboardContext";
+import { FrictionSettingsProvider } from "./context/FrictionSettingsContext";
 import { ControlPanel } from "./components/control-panel/ControlPanel";
 import { DesktopOS } from "./components/desktop/DesktopOS";
 import { FrictionOverlay } from "./components/friction-app/FrictionOverlay";
@@ -39,7 +40,9 @@ export default function App() {
           <SessionProvider>
             <KeyboardProvider>
               <WindowManagerProvider>
-                <AppContent />
+                <FrictionSettingsProvider>
+                  <AppContent />
+                </FrictionSettingsProvider>
               </WindowManagerProvider>
             </KeyboardProvider>
           </SessionProvider>
