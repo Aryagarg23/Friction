@@ -48,6 +48,7 @@ function readTheme() {
   const css = getComputedStyle(document.documentElement);
   return {
     ink: css.getPropertyValue("--pi-ink").trim() || "currentColor",
+    surface: css.getPropertyValue("--pi-surface").trim() || "#f2ede2",
     font: css.getPropertyValue("--pi-font").trim() || "sans-serif",
   };
 }
@@ -121,7 +122,7 @@ export function DigitalMoss({ keywords, taskContext, onClear }: Props) {
         x: w * 0.5 + Math.cos(angle) * w * radius,
         y: h * 0.5 + Math.sin(angle) * h * radius,
         opacity: 0,
-        targetOpacity: 0.85,
+        targetOpacity: 1,
         cleared: false,
         snapX: w * 0.5 + (Math.random() - 0.5) * 100,
         snapY: h * 0.5 + (Math.random() - 0.5) * 60,
@@ -232,10 +233,11 @@ export function DigitalMoss({ keywords, taskContext, onClear }: Props) {
         }
       }
 
-      // Context words, plain ink
+      // Context words: the point of the moss is that these can be read,
+      // so each sits on a small paper label above the texture.
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.font = `500 13px ${theme.font}`;
+      ctx.font = `500 15px ${theme.font}`;
 
       for (const kw of keywordsRef.current) {
         if (kw.cleared) continue;
@@ -253,6 +255,14 @@ export function DigitalMoss({ keywords, taskContext, onClear }: Props) {
         if (kw.opacity < 0.01) continue;
 
         ctx.globalAlpha = kw.opacity * growth;
+        const w = ctx.measureText(kw.text).width + 20;
+        const h = 28;
+        ctx.fillStyle = theme.surface;
+        ctx.fillRect(kw.x - w / 2, kw.y - h / 2, w, h);
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = theme.ink;
+        ctx.strokeRect(kw.x - w / 2 + 0.5, kw.y - h / 2 + 0.5, w - 1, h - 1);
+        ctx.fillStyle = theme.ink;
         ctx.fillText(kw.text, kw.x, kw.y);
       }
 

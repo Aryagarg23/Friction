@@ -13,7 +13,7 @@ import { useSession } from "../../context/SessionContext";
 import { useFrictionSettings } from "../../context/FrictionSettingsContext";
 import { useWindowManager } from "../../context/WindowManagerContext";
 import { usePersonaSimulation } from "../../hooks/usePersonaSimulation";
-import { ALL_PERSONAS, type BiometricPattern, type PersonaProfile } from "../../data/personas";
+import { ALL_PERSONAS, type BiometricPattern } from "../../data/personas";
 import { FrictionKeyboard } from "./FrictionKeyboard";
 
 /** Interpolate biometrics between two pattern points */
@@ -40,23 +40,14 @@ function interpolateBiometrics(
   return pattern[pattern.length - 1];
 }
 
-type StorySubState = PersonaProfile["storyBeats"][number]["subState"];
-
-/** Plain words for the story beat states stored in the persona data. */
-const SUB_STATE_WORDS: Record<StorySubState, string> = {
-  invisible: "Hidden",
-  taper: "Winding down",
-  recovery: "Recovering",
-  return: "Coming back",
-  intercept: "Break",
-  idle: "Idle",
-};
-
-const SCREENS: { num: 1 | 2 | 3; label: string }[] = [
-  { num: 1, label: "Plan" },
-  { num: 2, label: "Session" },
-  { num: 3, label: "Recap" },
+const SCREENS: { num: 1 | 2 | 3; label: string; explain: string }[] = [
+  { num: 1, label: "Plan", explain: "Pick tasks." },
+  { num: 2, label: "Session", explain: "The user is working." },
+  { num: 3, label: "Recap", explain: "After the session." },
 ];
+
+const KEYBOARD_CAPTION =
+  "The keyboard Friction ships with. Its keys get softer, then heavier, then lock as fatigue rises.";
 
 const PRESETS: { label: string; focus: number; fatigue: number }[] = [
   { label: "Focused", focus: 0.95, fatigue: 0.2 },
@@ -69,6 +60,25 @@ const smallBtn: CSSProperties = { padding: "0.35rem 0.65rem", fontSize: "0.65rem
 const bodyText: CSSProperties = { fontSize: "0.8125rem", lineHeight: 1.5, color: "var(--pi-ink)" };
 const mutedText: CSSProperties = { fontSize: "0.75rem", lineHeight: 1.5, color: "var(--pi-ink-60)" };
 const tabular: CSSProperties = { fontVariantNumeric: "tabular-nums" };
+/** The strongest button on the panel: filled ink, never blue or hot. */
+const primaryBtn: CSSProperties = {
+  padding: "0.5rem 0.75rem",
+  fontSize: "0.75rem",
+  backgroundColor: "var(--pi-ink)",
+  color: "var(--pi-ground)",
+};
+/** A quiet text-only button for secondary actions. */
+const textBtn: CSSProperties = {
+  padding: 0,
+  border: "none",
+  background: "transparent",
+  fontFamily: "var(--pi-font)",
+  fontSize: "0.75rem",
+  color: "var(--pi-ink-60)",
+  textDecoration: "underline",
+  textUnderlineOffset: "0.2em",
+  cursor: "pointer",
+};
 
 export function ControlPanel() {
   const { current: biometrics, setCurrent, simulateGradualChange, setBiometrics } = useBiometrics();
@@ -77,6 +87,7 @@ export function ControlPanel() {
   const { interceptFatigue } = useFrictionSettings();
   const { closeAllWindows } = useWindowManager();
   const [isExpanded, setIsExpanded] = useState(true);
+  const [showSliders, setShowSliders] = useState(false);
   const [showTimeline, setShowTimeline] = useState(false);
   const [timelineMinutes, setTimelineMinutes] = useState(0);
   const [isDraggingTimeline, setIsDraggingTimeline] = useState(false);
@@ -335,6 +346,8 @@ export function ControlPanel() {
     );
   }
 
+  const stepCount = currentPersona?.storyBeats.length ?? 0;
+
   return (
     <div
       className="h-screen flex flex-col shrink-0"
@@ -348,150 +361,190 @@ export function ControlPanel() {
         transition: "width var(--pi-ease-focus)",
       }}
     >
-      {/* Header */}
+      {/* Header + what this demo is. Always visible. */}
       <header
-        className="shrink-0 flex items-start justify-between gap-4"
+        className="shrink-0"
         style={{ padding: "1.25rem", borderBottom: "1px dashed var(--pi-hairline)" }}
       >
-        <div>
-          <h2 style={{ margin: 0, fontSize: "1rem", fontWeight: 500, letterSpacing: "0.01em" }}>
-            Demo controls
-          </h2>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 style={{ margin: 0, fontSize: "1rem", fontWeight: 500, letterSpacing: "0.01em" }}>
+              Demo controls
+            </h2>
+            <p style={{ ...mutedText, margin: "0.25rem 0 0" }}>
+              For the presenter. Not part of Friction.
+            </p>
+          </div>
+          <button className="pi-btn shrink-0" style={smallBtn} onClick={() => setIsExpanded(false)}>
+            Hide
+          </button>
+        </div>
+        <div style={{ marginTop: "0.875rem", paddingTop: "0.875rem", borderTop: "1px solid var(--pi-hairline)" }}>
+          <h3 className="pi-label" style={{ margin: 0 }}>About this demo</h3>
+          <p style={{ ...bodyText, margin: "0.375rem 0 0" }}>
+            Friction is a focus app and keyboard. It stays out of sight while you focus. When you get
+            tired, the keys get heavier so you stop before you burn out.
+          </p>
           <p style={{ ...mutedText, margin: "0.375rem 0 0" }}>
-            For the presenter. Not part of Friction. These sliders stand in for the sensors.
+            Left: these controls. Middle: the user's laptop. Right edge: the Friction app.
           </p>
         </div>
-        <button className="pi-btn shrink-0" style={smallBtn} onClick={() => setIsExpanded(false)}>
-          Hide
-        </button>
       </header>
 
       <div className="flex-1 overflow-y-auto min-h-0">
-        {/* Screen */}
-        <Section title="Screen">
-          <div className="grid grid-cols-3" style={{ gap: "0.5rem" }}>
-            {SCREENS.map(s => (
-              <button
-                key={s.num}
-                className="pi-btn"
-                aria-pressed={activeScreenNumber === s.num}
-                onClick={() => forceScreen(s.num)}
-                style={{ padding: "0.6rem 0.5rem", textAlign: "left" }}
-              >
-                <span style={{ ...tabular, opacity: 0.6, marginRight: "0.4rem" }}>{s.num}</span>
-                {s.label}
-              </button>
-            ))}
-          </div>
-          <p style={{ ...mutedText, margin: "0.75rem 0 0" }}>{screenNote}</p>
-        </Section>
-
-        {showTimeline && currentPersona ? (
+        {showTimeline && currentPersona && activeBeat ? (
           <>
-            {/* Story */}
-            <Section
-              title="Story"
-              action={
-                <button className="pi-btn" style={smallBtn} onClick={handleBackToControls}>
+            {/* Current step */}
+            <section style={{ padding: "1.25rem" }}>
+              <div className="flex items-center justify-between" style={{ gap: "0.75rem" }}>
+                <button className="pi-btn shrink-0" style={smallBtn} onClick={handleBackToControls}>
                   Back
                 </button>
-              }
-            >
-              <div style={{ ...bodyText, fontWeight: 500 }}>
-                {currentPersona.name}
-                <span style={{ fontWeight: 400, color: "var(--pi-ink-60)", marginLeft: "0.5rem" }}>
-                  {currentPersona.archetype}
+                <span className="pi-label" style={{ ...tabular }}>
+                  Step {activeBeatIdx + 1} of {stepCount}
+                </span>
+                <span className="truncate" style={{ fontSize: "0.8125rem", fontWeight: 500 }}>
+                  {currentPersona.name}
                 </span>
               </div>
-              <p style={{ ...mutedText, margin: "0.375rem 0 0" }}>{currentPersona.description}</p>
+
+              <div
+                style={{
+                  marginTop: "1rem",
+                  padding: "1rem",
+                  border: "1px solid var(--pi-ink)",
+                  backgroundColor: "var(--pi-surface)",
+                }}
+              >
+                <h3 style={{ margin: 0, fontSize: "1.125rem", fontWeight: 500, lineHeight: 1.3 }}>
+                  {activeBeat.phase}
+                </h3>
+                <p style={{ ...bodyText, margin: "0.5rem 0 0" }}>{activeBeat.narration}</p>
+                <p style={{ ...bodyText, margin: "0.75rem 0 0" }}>
+                  <span style={{ fontWeight: 500 }}>Friction: </span>
+                  {activeBeat.friction}
+                </p>
+                <p style={{ ...bodyText, margin: "0.5rem 0 0" }}>
+                  <span style={{ fontWeight: 500, color: "var(--pi-blue)" }}>Look at: </span>
+                  {activeBeat.lookAt}
+                </p>
+              </div>
 
               {/* Transport */}
-              <div className="flex items-center justify-between" style={{ marginTop: "1rem" }}>
-                <div className="flex" style={{ gap: "0.375rem" }}>
-                  <button
-                    className="pi-btn"
-                    style={smallBtn}
-                    onClick={() => { setTimelineMinutes(0); driveFromTimeline(0); }}
-                  >
-                    Restart
-                  </button>
-                  <button
-                    className="pi-btn"
-                    style={smallBtn}
-                    aria-pressed={isAutoPlaying}
-                    onClick={toggleAutoPlay}
-                  >
-                    {isAutoPlaying ? "Pause" : "Play"}
-                  </button>
-                  <button
-                    className="pi-btn"
-                    style={smallBtn}
-                    onClick={() => jumpToBeat(Math.min(activeBeatIdx + 1, currentPersona.storyBeats.length - 1))}
-                  >
-                    Next
-                  </button>
-                </div>
-                <span style={{ ...tabular, fontSize: "0.8125rem" }}>
-                  <span style={{ color: "var(--pi-blue)" }}>{Math.round(timelineMinutes)}</span>
-                  <span style={{ color: "var(--pi-ink-60)" }}> / {currentPersona.sessionDurationMinutes} min</span>
+              <div className="flex" style={{ gap: "0.375rem", marginTop: "0.75rem" }}>
+                <button
+                  className="pi-btn"
+                  style={{ ...smallBtn, opacity: activeBeatIdx <= 0 ? 0.4 : 1 }}
+                  disabled={activeBeatIdx <= 0}
+                  onClick={() => jumpToBeat(Math.max(activeBeatIdx - 1, 0))}
+                >
+                  Previous
+                </button>
+                <button
+                  className="pi-btn flex-1"
+                  style={{ ...primaryBtn, opacity: activeBeatIdx >= stepCount - 1 ? 0.4 : 1 }}
+                  disabled={activeBeatIdx >= stepCount - 1}
+                  onClick={() => jumpToBeat(Math.min(activeBeatIdx + 1, stepCount - 1))}
+                >
+                  Next step
+                </button>
+                <button
+                  className="pi-btn"
+                  style={smallBtn}
+                  aria-pressed={isAutoPlaying}
+                  onClick={toggleAutoPlay}
+                >
+                  {isAutoPlaying ? "Pause" : "Play all"}
+                </button>
+              </div>
+              <div className="flex items-center justify-between" style={{ marginTop: "0.5rem" }}>
+                <button
+                  onClick={() => { setTimelineMinutes(0); driveFromTimeline(0); }}
+                  style={textBtn}
+                >
+                  Restart
+                </button>
+                <span style={{ ...tabular, fontSize: "0.75rem", color: "var(--pi-ink-45)" }}>
+                  Minute {Math.round(timelineMinutes)} of {currentPersona.sessionDurationMinutes}
                 </span>
               </div>
+            </section>
 
-              {/* Now */}
-              <div style={{ marginTop: "1rem", paddingTop: "1rem", borderTop: "1px solid var(--pi-hairline)" }}>
-                {steppedAway ? (
-                  <p style={{ ...bodyText, margin: 0 }}>Away from the desk.</p>
-                ) : (
-                  <>
-                    <p style={{ ...bodyText, margin: 0 }} className="truncate">
-                      <span style={{ color: "var(--pi-ink-60)" }}>Now: </span>
-                      {currentTasks.active}
-                    </p>
-                    <p style={{ ...mutedText, margin: "0.125rem 0 0" }} className="truncate">
-                      Next: {currentTasks.upcoming}
-                    </p>
-                  </>
-                )}
-                <div className="flex" style={{ gap: "0.375rem", marginTop: "0.75rem" }}>
-                  {steppedAway ? (
-                    <button className="pi-btn flex-1" style={smallBtn} onClick={handlePickBackUp}>
-                      Come back
-                    </button>
-                  ) : (
-                    <>
-                      <button className="pi-btn flex-1" style={smallBtn} onClick={handleStepAway}>
-                        Step away
-                      </button>
-                      <button
-                        className="pi-btn flex-1"
-                        style={smallBtn}
-                        onClick={() => triggerStrike(currentTasks.active, currentTasks.upcoming)}
-                      >
-                        Finish task
-                      </button>
-                    </>
-                  )}
-                </div>
+            {/* Keyboard: the core of the idea */}
+            <Section title="The keyboard">
+              <p style={{ ...mutedText, margin: "0 0 0.875rem" }}>{KEYBOARD_CAPTION}</p>
+              <FrictionKeyboard />
+            </Section>
+
+            {/* Sensors (read-only while the story drives them) */}
+            <Section title="Focus and fatigue">
+              <div className="flex flex-col" style={{ gap: "0.625rem" }}>
+                <ReadoutBar label="Focus" value={biometrics.focus_percent} />
+                <ReadoutBar label="Fatigue" value={biometrics.fatigue_percent} warn={overThreshold} />
               </div>
             </Section>
 
-            {/* Timeline */}
-            <Section title="Timeline">
-              <div className="flex" style={{ gap: "1rem" }}>
-                {/* Track */}
-                <div className="flex justify-center shrink-0" style={{ width: "20px" }}>
+            {/* Interruptions the presenter can add */}
+            <Section title="Try during the story">
+              {steppedAway ? (
+                <p style={{ ...bodyText, margin: 0 }}>Away from the desk.</p>
+              ) : (
+                <>
+                  <p style={{ ...bodyText, margin: 0 }} className="truncate">
+                    <span style={{ color: "var(--pi-ink-60)" }}>Current task: </span>
+                    {currentTasks.active}
+                  </p>
+                  <p style={{ ...mutedText, margin: "0.125rem 0 0" }} className="truncate">
+                    Next: {currentTasks.upcoming}
+                  </p>
+                </>
+              )}
+              <div className="flex flex-col" style={{ gap: "0.75rem", marginTop: "0.875rem" }}>
+                <div>
+                  {steppedAway ? (
+                    <button className="pi-btn w-full" style={smallBtn} onClick={handlePickBackUp}>
+                      Come back
+                    </button>
+                  ) : (
+                    <button className="pi-btn w-full" style={smallBtn} onClick={handleStepAway}>
+                      Step away
+                    </button>
+                  )}
+                  <p style={{ ...mutedText, margin: "0.375rem 0 0" }}>
+                    Simulates walking away from the desk. Shows the moss when you come back.
+                  </p>
+                </div>
+                {!steppedAway && (
+                  <div>
+                    <button
+                      className="pi-btn w-full"
+                      style={smallBtn}
+                      onClick={() => triggerStrike(currentTasks.active, currentTasks.upcoming)}
+                    >
+                      Finish task
+                    </button>
+                    <p style={{ ...mutedText, margin: "0.375rem 0 0" }}>Marks the current task done.</p>
+                  </div>
+                )}
+              </div>
+            </Section>
+
+            {/* All steps */}
+            <Section title="All steps">
+              <div className="flex" style={{ gap: "0.75rem" }}>
+                {/* Track: drag to scrub */}
+                <div className="flex justify-center shrink-0" style={{ width: "16px" }}>
                   <div
                     ref={trackRef}
                     className="relative cursor-pointer"
-                    style={{ width: "20px", alignSelf: "stretch" }}
+                    style={{ width: "16px", alignSelf: "stretch" }}
                     onMouseDown={handleTrackMouseDown}
+                    aria-hidden="true"
                   >
-                    {/* Line */}
                     <div
                       className="absolute top-0 bottom-0 pointer-events-none"
                       style={{ left: "50%", width: "1px", backgroundColor: "var(--pi-hairline)" }}
                     />
-                    {/* Elapsed */}
                     <div
                       className="absolute top-0 pointer-events-none"
                       style={{
@@ -502,35 +555,6 @@ export function ControlPanel() {
                         transition: isDraggingTimeline ? "none" : "height var(--pi-ease-focus)",
                       }}
                     />
-                    {/* Beat markers */}
-                    {currentPersona.storyBeats.map((beat, i) => {
-                      const pct = (beat.time / currentPersona.sessionDurationMinutes) * 100;
-                      const isActive = i === activeBeatIdx;
-                      return (
-                        <button
-                          key={i}
-                          aria-label={`Jump to part ${i + 1}`}
-                          className="absolute flex items-center justify-center cursor-pointer"
-                          style={{
-                            left: "50%",
-                            top: `${pct}%`,
-                            width: "16px",
-                            height: "16px",
-                            transform: "translate(-50%, -50%)",
-                            fontSize: "0.55rem",
-                            ...tabular,
-                            border: "1px solid var(--pi-ink)",
-                            backgroundColor: isActive ? "var(--pi-ink)" : "var(--pi-ground)",
-                            color: isActive ? "var(--pi-ground)" : "var(--pi-ink)",
-                            transition: "background-color var(--pi-ease-hover), color var(--pi-ease-hover)",
-                          }}
-                          onClick={(e) => { e.stopPropagation(); jumpToBeat(i); }}
-                        >
-                          {i + 1}
-                        </button>
-                      );
-                    })}
-                    {/* Playhead */}
                     <div
                       className="absolute pointer-events-none"
                       style={{
@@ -546,7 +570,6 @@ export function ControlPanel() {
                   </div>
                 </div>
 
-                {/* Beats */}
                 <ol className="flex-1 min-w-0" style={{ listStyle: "none", margin: 0, padding: 0 }}>
                   {currentPersona.storyBeats.map((beat, index) => {
                     const isActive = index === activeBeatIdx;
@@ -555,30 +578,24 @@ export function ControlPanel() {
                       <li key={index}>
                         <button
                           onClick={() => jumpToBeat(index)}
-                          className="w-full text-left cursor-pointer"
+                          aria-current={isActive ? "step" : undefined}
+                          className="w-full text-left cursor-pointer flex items-baseline"
                           style={{
-                            display: "block",
-                            padding: "0.625rem 0.75rem",
+                            gap: "0.5rem",
+                            padding: "0.4rem 0.625rem",
                             border: "none",
                             borderLeft: `1px solid ${isActive ? "var(--pi-ink)" : "transparent"}`,
                             background: isActive ? "var(--pi-ink-08)" : "transparent",
                             color: isPast ? "var(--pi-ink-45)" : "var(--pi-ink)",
                             fontFamily: "var(--pi-font)",
+                            fontSize: "0.8125rem",
+                            fontWeight: isActive ? 500 : 400,
                             transition: "background-color var(--pi-ease-hover), border-color var(--pi-ease-focus)",
                           }}
                         >
-                          <div className="flex items-baseline" style={{ gap: "0.5rem", fontSize: "0.7rem" }}>
-                            <span style={{ ...tabular, opacity: 0.7 }}>{beat.time} min</span>
-                            <span style={{ opacity: 0.7 }}>{SUB_STATE_WORDS[beat.subState] ?? beat.subState}</span>
-                          </div>
-                          <div style={{ fontSize: "0.8125rem", fontWeight: 500, marginTop: "0.125rem" }}>
-                            {beat.phase}
-                          </div>
-                          {isActive && (
-                            <p style={{ ...mutedText, margin: "0.375rem 0 0", color: "var(--pi-ink-60)" }}>
-                              {beat.narration}
-                            </p>
-                          )}
+                          <span style={{ ...tabular, width: "1rem", opacity: 0.7 }}>{index + 1}</span>
+                          <span className="flex-1 min-w-0 truncate">{beat.phase}</span>
+                          <span style={{ ...tabular, fontSize: "0.7rem", opacity: 0.6 }}>{beat.time} min</span>
                         </button>
                       </li>
                     );
@@ -586,47 +603,15 @@ export function ControlPanel() {
                 </ol>
               </div>
             </Section>
-
-            {/* Sensors (read-only while the story drives them) */}
-            <Section title="Sensors">
-              <div className="flex flex-col" style={{ gap: "0.625rem" }}>
-                <ReadoutBar label="Focus" value={biometrics.focus_percent} />
-                <ReadoutBar label="Fatigue" value={biometrics.fatigue_percent} warn={overThreshold} />
-              </div>
-            </Section>
           </>
         ) : (
           <>
-            {/* Sensors */}
-            <Section title="Sensors">
-              <div className="flex flex-col" style={{ gap: "1.125rem" }}>
-                <SliderRow
-                  label="Focus"
-                  value={biometrics.focus_percent}
-                  onChange={handleFocusChange}
-                />
-                <SliderRow
-                  label="Fatigue"
-                  value={biometrics.fatigue_percent}
-                  onChange={handleFatigueChange}
-                  warn={overThreshold}
-                />
-              </div>
-              <div className="grid grid-cols-2" style={{ gap: "0.5rem", marginTop: "1.25rem" }}>
-                {PRESETS.map(p => (
-                  <button
-                    key={p.label}
-                    className="pi-btn"
-                    onClick={() => setBiometrics({ focus_percent: p.focus, fatigue_percent: p.fatigue })}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-            </Section>
-
-            {/* Stories */}
-            <Section title="Stories">
+            {/* Primary path: stories */}
+            <section style={{ padding: "1.25rem" }}>
+              <h3 className="pi-label" style={{ margin: 0 }}>Watch a story</h3>
+              <p style={{ ...mutedText, margin: "0.375rem 0 0.875rem" }}>
+                Pick one. Then use Next to step through it.
+              </p>
               <div className="flex flex-col" style={{ gap: "0.5rem" }}>
                 {ALL_PERSONAS.map(persona => (
                   <button
@@ -634,33 +619,107 @@ export function ControlPanel() {
                     className="pi-btn"
                     aria-pressed={currentPersona?.id === persona.id}
                     onClick={() => handlePersonaClick(persona.id)}
-                    style={{ textAlign: "left", padding: "0.7rem 0.9rem" }}
+                    style={{ textAlign: "left", padding: "0.75rem 0.9rem" }}
                   >
                     {persona.name}
+                    <span style={{ fontWeight: 400, opacity: 0.7, marginLeft: "0.5rem" }}>
+                      {persona.archetype}
+                    </span>
                     <span
                       style={{
                         display: "block",
                         textTransform: "none",
                         letterSpacing: 0,
                         fontWeight: 400,
-                        fontSize: "0.75rem",
-                        opacity: 0.7,
-                        marginTop: "0.125rem",
+                        fontSize: "0.8125rem",
+                        lineHeight: 1.45,
+                        marginTop: "0.25rem",
                       }}
                     >
-                      {persona.archetype}
+                      {persona.shows}
                     </span>
                   </button>
                 ))}
               </div>
+            </section>
+
+            {/* Secondary path: manual controls */}
+            <Section
+              title="Try it yourself"
+              action={
+                <button
+                  className="pi-btn"
+                  style={smallBtn}
+                  aria-expanded={showSliders}
+                  onClick={() => setShowSliders(v => !v)}
+                >
+                  {showSliders ? "Hide sliders" : "Show sliders"}
+                </button>
+              }
+            >
+              {!showSliders ? (
+                <p style={{ ...mutedText, margin: 0 }}>
+                  Move focus and fatigue by hand, or jump to a screen.
+                </p>
+              ) : (
+                <>
+                  <div className="flex flex-col" style={{ gap: "1.125rem" }}>
+                    <SliderRow
+                      label="Focus"
+                      explain="How locked-in the user is."
+                      value={biometrics.focus_percent}
+                      onChange={handleFocusChange}
+                    />
+                    <SliderRow
+                      label="Fatigue"
+                      explain="How tired the user is."
+                      value={biometrics.fatigue_percent}
+                      onChange={handleFatigueChange}
+                      warn={overThreshold}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2" style={{ gap: "0.5rem", marginTop: "1.25rem" }}>
+                    {PRESETS.map(p => (
+                      <button
+                        key={p.label}
+                        className="pi-btn"
+                        onClick={() => setBiometrics({ focus_percent: p.focus, fatigue_percent: p.fatigue })}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <h4 style={{ ...bodyText, fontWeight: 500, margin: "1.5rem 0 0.625rem" }}>
+                    Jump to a screen
+                  </h4>
+                  <div className="flex flex-col" style={{ gap: "0.375rem" }}>
+                    {SCREENS.map(s => (
+                      <div key={s.num} className="flex items-center" style={{ gap: "0.75rem" }}>
+                        <button
+                          className="pi-btn shrink-0"
+                          aria-pressed={activeScreenNumber === s.num}
+                          onClick={() => forceScreen(s.num)}
+                          style={{ width: "6.5rem", padding: "0.45rem 0.6rem", textAlign: "left" }}
+                        >
+                          {s.label}
+                        </button>
+                        <span style={mutedText}>{s.explain}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <p style={{ ...mutedText, margin: "0.75rem 0 0" }}>{screenNote}</p>
+                </>
+              )}
+            </Section>
+
+            {/* Keyboard */}
+            <Section title="The keyboard">
+              <p style={{ ...mutedText, margin: "0 0 0.875rem" }}>{KEYBOARD_CAPTION}</p>
+              <FrictionKeyboard />
             </Section>
           </>
         )}
-
-        {/* Keyboard */}
-        <Section title="Keyboard">
-          <FrictionKeyboard />
-        </Section>
       </div>
     </div>
   );
@@ -680,11 +739,13 @@ function Section({ title, action, children }: { title: string; action?: ReactNod
 
 function SliderRow({
   label,
+  explain,
   value,
   onChange,
   warn,
 }: {
   label: string;
+  explain: string;
   value: number;
   onChange: (v: number) => void;
   warn?: boolean;
@@ -692,7 +753,10 @@ function SliderRow({
   return (
     <label className="block">
       <div className="flex justify-between items-baseline" style={{ marginBottom: "0.375rem" }}>
-        <span style={{ fontSize: "0.8125rem" }}>{label}</span>
+        <span style={{ fontSize: "0.8125rem" }}>
+          {label}
+          <span style={{ color: "var(--pi-ink-60)", fontSize: "0.75rem", marginLeft: "0.5rem" }}>{explain}</span>
+        </span>
         <span
           style={{
             ...tabular,

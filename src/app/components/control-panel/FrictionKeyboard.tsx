@@ -6,7 +6,7 @@
  *   1. Key resistance — presses sink less and return more slowly as fatigue rises
  *   2. Light mode — derived from focus and fatigue, published to KeyboardContext
  *   3. Binaural tone — optional stereo audio that shifts with the readings
- *   4. Temperature — the board warms up to +4 °C with fatigue
+ *   4. Wrist rest — warms up to +4 °C with fatigue
  *
  * At high fatigue a random key briefly lights up, as a stand-in for misfires.
  */
@@ -306,13 +306,15 @@ export function FrictionKeyboard() {
           {RESISTANCE_WORDS[resistance]}
         </dd>
 
-        <dt style={{ color: "var(--pi-ink-60)" }}>Light</dt>
+        <dt style={{ color: "var(--pi-ink-60)" }}>Key light</dt>
         <dd style={{ margin: 0 }}>{LIGHT_WORDS[rgb]}</dd>
 
-        <dt style={{ color: "var(--pi-ink-60)" }}>Heat</dt>
-        <dd style={{ margin: 0, ...tabular }}>+{temperature.toFixed(1)} °C</dd>
+        <dt style={{ color: "var(--pi-ink-60)" }}>Wrist rest</dt>
+        <dd style={{ margin: 0 }}>
+          <span style={tabular}>+{temperature.toFixed(1)} °C</span> warmer
+        </dd>
 
-        <dt style={{ color: "var(--pi-ink-60)" }}>Tone</dt>
+        <dt style={{ color: "var(--pi-ink-60)" }}>Sound</dt>
         <dd style={{ margin: 0 }} className="flex items-center justify-between gap-2">
           <span style={{ color: audioOn ? "var(--pi-ink)" : "var(--pi-ink-60)" }}>
             <span style={{ ...tabular, color: audioOn ? "var(--pi-blue)" : undefined }}>{binInfo.beat} Hz</span>

@@ -274,16 +274,16 @@ export const PERPLEXOUS_PERSONA: PersonaProfile = {
       phase: "Interrupted",
       time: 75,
       narration: "A lab mate stops by with a question. He loses his train of thought.",
-      friction: "It sees his focus drop and keeps a note of what he was working on.",
-      lookAt: "Focus in this panel drops to almost zero.",
+      friction: "It sees his focus drop. It offers a short reset and keeps a note of what he was working on.",
+      lookAt: "The laptop screen: a short reset prompt. Focus in this panel drops to almost zero.",
       subState: "return"
     },
     {
       phase: "Coming back",
       time: 78,
       narration: "He comes back to his desk and does not remember where he was.",
-      friction: "It covers the screen with 'moss' that shows the words he was working with, so he can find his place.",
-      lookAt: "The laptop screen. Sweep the mouse across the moss to clear it.",
+      friction: "It covers the screen with 'moss'. Labels in the moss show the words he was working with, so he can find his place.",
+      lookAt: "The laptop screen: read the labels, then sweep the mouse across the moss to clear it.",
       subState: "return"
     },
     {
