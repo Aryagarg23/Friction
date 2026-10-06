@@ -1,10 +1,11 @@
 /**
  * TASKBAR
  *
- * One plain taskbar at the bottom: start + search on the left, pinned and
- * running apps in the middle, tray and clock on the right.
- * Friction lives only in the tray, not as a launchable app.
- * The app glyphs are emoji so the fake desktop still reads as a real one.
+ * Windows 11 taskbar: 48px acrylic bar, centered group of start, search and
+ * pinned/running apps; system tray and two-line clock on the right.
+ * Friction lives only in the tray (the diamond drop target), not as an app,
+ * and is the one piece styled in Friction's own --pi-* identity.
+ * Colors come from the --w11-* tokens DesktopOS defines on .w11-root.
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -33,9 +34,7 @@ const APPS: AppDef[] = [
   { id: "settings", name: "Settings", icon: "⚙️", size: { width: 950, height: 650 } },
 ];
 
-const TRAY_ICON = { color: "var(--pi-ink-60)" };
-const HOVER = "hover:bg-[var(--pi-ink-08)]";
-const HOVER_TRANSITION = { transition: "background-color var(--pi-ease-hover)" };
+const TRAY_ICON = { color: "var(--w11-text)" };
 
 function Clock() {
   const [time, setTime] = useState(new Date());
@@ -49,26 +48,48 @@ function Clock() {
   const h12 = h % 12 || 12;
   const dateStr = time.toLocaleDateString("en-US", { month: "numeric", day: "numeric", year: "numeric" });
   return (
-    <div
-      className="text-right"
+    <button
+      className="w11-tb-btn flex flex-col items-end justify-center h-10 px-2 cursor-default"
       style={{
-        fontSize: "0.7rem",
-        color: "var(--pi-ink)",
-        lineHeight: "1.3",
+        fontSize: "12px",
+        color: "var(--w11-text)",
+        lineHeight: "16px",
         fontVariantNumeric: "tabular-nums",
       }}
     >
-      <div>{h12}:{m} {ampm}</div>
-      <div style={{ color: "var(--pi-ink-60)" }}>{dateStr}</div>
-    </div>
+      <span>{h12}:{m} {ampm}</span>
+      <span>{dateStr}</span>
+    </button>
+  );
+}
+
+/** Windows 11 start glyph: four blue squares, lighter at the top-left. */
+function StartGlyph() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden>
+      <defs>
+        <linearGradient id="w11-start" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#4cc2ff" />
+          <stop offset="1" stopColor="#0078d4" />
+        </linearGradient>
+      </defs>
+      <rect x="1" y="1" width="8.5" height="8.5" rx="0.6" fill="url(#w11-start)" />
+      <rect x="10.5" y="1" width="8.5" height="8.5" rx="0.6" fill="url(#w11-start)" />
+      <rect x="1" y="10.5" width="8.5" height="8.5" rx="0.6" fill="url(#w11-start)" />
+      <rect x="10.5" y="10.5" width="8.5" height="8.5" rx="0.6" fill="url(#w11-start)" />
+    </svg>
   );
 }
 
 export function Dock() {
-  const { openWindow, isAppOpen, focusAppWindow } = useWindowManager();
+  const { windows, focusedWindowId, openWindow, isAppOpen, focusAppWindow, minimizeWindow } = useWindowManager();
+  const focusedAppId = windows.find(w => w.id === focusedWindowId)?.appId ?? null;
 
   const handleAppClick = (app: AppDef) => {
-    if (isAppOpen(app.id)) {
+    // Like Windows: clicking the active app's taskbar button minimizes it.
+    if (focusedAppId === app.id && focusedWindowId) {
+      minimizeWindow(focusedWindowId);
+    } else if (isAppOpen(app.id)) {
       focusAppWindow(app.id);
     } else {
       openWindow(app.id, app.name, app.size);
@@ -77,64 +98,73 @@ export function Dock() {
 
   return (
     <div
-      className="absolute bottom-0 left-0 right-0 flex items-center"
+      className="w11-font absolute bottom-0 left-0 right-0 flex items-center select-none"
       style={{
         height: "48px",
         zIndex: 5000,
-        backgroundColor: "var(--pi-surface)",
-        borderTop: "1px solid var(--pi-hairline)",
-        fontFamily: "var(--pi-font)",
+        backgroundColor: "var(--w11-taskbar)",
+        backdropFilter: "blur(30px) saturate(1.5)",
+        WebkitBackdropFilter: "blur(30px) saturate(1.5)",
+        borderTop: "1px solid var(--w11-taskbar-border)",
+        color: "var(--w11-text)",
       }}
     >
-      {/* Start + search */}
-      <div className="flex items-center h-full gap-1 px-2 shrink-0">
+      {/* Left balance so the app group sits in the true center */}
+      <div className="flex-1 min-w-0" />
+
+      {/* Centered group: start, search, pinned + running apps */}
+      <div className="flex items-center h-full gap-1 shrink-0">
         <button
           aria-label="Start"
-          className={`flex items-center justify-center h-9 w-9 cursor-pointer ${HOVER}`}
-          style={HOVER_TRANSITION}
+          title="Start"
+          className="w11-tb-btn flex items-center justify-center cursor-default"
+          style={{ width: "40px", height: "40px" }}
         >
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style={{ color: "var(--pi-ink)" }}>
-            <rect x="0" y="0" width="7" height="7" />
-            <rect x="9" y="0" width="7" height="7" />
-            <rect x="0" y="9" width="7" height="7" />
-            <rect x="9" y="9" width="7" height="7" />
-          </svg>
+          <StartGlyph />
         </button>
         <div
-          className="flex items-center gap-2 px-3 h-8"
+          className="flex items-center gap-2 mx-1"
           style={{
-            backgroundColor: "var(--pi-ground)",
-            border: "1px solid var(--pi-hairline)",
-            width: "200px",
+            height: "32px",
+            width: "180px",
+            padding: "0 12px",
+            borderRadius: "999px",
+            backgroundColor: "var(--w11-search)",
+            border: "1px solid var(--w11-search-border)",
           }}
         >
-          <Search size={13} style={{ color: "var(--pi-ink-45)" }} />
-          <span style={{ fontSize: "0.72rem", color: "var(--pi-ink-45)" }}>Search</span>
+          <Search size={15} strokeWidth={1.75} style={{ color: "var(--w11-text)", transform: "scaleX(-1)" }} />
+          <span style={{ fontSize: "13px", color: "var(--w11-text-2)" }}>Search</span>
         </div>
-      </div>
-
-      {/* Pinned + running apps */}
-      <div className="flex-1 flex items-center justify-center gap-0.5 h-full px-1">
         {APPS.map(app => (
           <TaskbarApp
             key={app.id}
             app={app}
             isRunning={isAppOpen(app.id)}
+            isFocused={focusedAppId === app.id}
             onClick={() => handleAppClick(app)}
           />
         ))}
       </div>
 
-      {/* Tray */}
-      <div className="flex items-center gap-2 h-full px-3 shrink-0">
-        <button aria-label="Show hidden icons" className={`p-1 cursor-pointer ${HOVER}`} style={HOVER_TRANSITION}>
-          <ChevronUp size={13} style={TRAY_ICON} />
+      {/* System tray */}
+      <div className="flex-1 flex items-center justify-end h-full gap-1 pr-2">
+        <button
+          aria-label="Show hidden icons"
+          className="w11-tb-btn flex items-center justify-center cursor-default"
+          style={{ width: "24px", height: "40px" }}
+        >
+          <ChevronUp size={14} strokeWidth={1.75} style={TRAY_ICON} />
         </button>
         <FrictionTrayIcon />
-        <Wifi size={14} style={TRAY_ICON} />
-        <Volume2 size={14} style={TRAY_ICON} />
-        <BatteryFull size={14} style={TRAY_ICON} />
-        <div style={{ width: "1px", height: "20px", backgroundColor: "var(--pi-hairline)" }} />
+        <button
+          aria-label="Network, volume, battery"
+          className="w11-tb-btn flex items-center gap-2.5 h-10 px-2 cursor-default"
+        >
+          <Wifi size={15} strokeWidth={1.75} style={TRAY_ICON} />
+          <Volume2 size={15} strokeWidth={1.75} style={TRAY_ICON} />
+          <BatteryFull size={15} strokeWidth={1.75} style={TRAY_ICON} />
+        </button>
         <Clock />
       </div>
     </div>
@@ -144,25 +174,36 @@ export function Dock() {
 interface TaskbarAppProps {
   app: AppDef;
   isRunning: boolean;
+  isFocused: boolean;
   onClick: () => void;
 }
 
-function TaskbarApp({ app, isRunning, onClick }: TaskbarAppProps) {
+function TaskbarApp({ app, isRunning, isFocused, onClick }: TaskbarAppProps) {
   return (
     <button
       onClick={onClick}
       title={app.name}
       aria-label={app.name}
-      className={`relative flex items-center justify-center cursor-pointer ${HOVER}`}
-      style={{ width: "40px", height: "40px", ...HOVER_TRANSITION }}
+      data-active={isFocused}
+      className="w11-tb-btn relative flex items-center justify-center cursor-default"
+      style={{ width: "40px", height: "40px" }}
     >
-      <span style={{ fontSize: "1.1rem", lineHeight: 1 }}>{app.icon}</span>
+      <span style={{ fontSize: "22px", lineHeight: 1 }}>{app.icon}</span>
 
-      {/* Running indicator */}
+      {/* Running indicator: wide blue pill for the focused window, short gray dash otherwise */}
       {isRunning && (
         <span
-          className="absolute bottom-0.5"
-          style={{ width: "14px", height: "2px", backgroundColor: "var(--pi-ink)" }}
+          className="absolute"
+          style={{
+            bottom: "1px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            width: isFocused ? "16px" : "6px",
+            height: "3px",
+            borderRadius: "999px",
+            backgroundColor: isFocused ? "var(--w11-blue)" : "var(--w11-pill-idle)",
+            transition: "width 167ms cubic-bezier(0.1, 0.9, 0.2, 1), background-color 167ms linear",
+          }}
         />
       )}
     </button>
@@ -173,7 +214,8 @@ function TaskbarApp({ app, isRunning, onClick }: TaskbarAppProps) {
  * FRICTION TRAY ICON
  *
  * A small diamond in the tray. Drop text on it to add a task to the inbox.
- * Hover explains that, since nothing else on screen does.
+ * Hover explains that, since nothing else on screen does. This is Friction,
+ * not Windows, so it keeps the --pi-* ink/paper identity and var(--pi-font).
  */
 function FrictionTrayIcon() {
   const { sessionState, addGeneralTask } = useSession();
@@ -223,7 +265,8 @@ function FrictionTrayIcon() {
 
   return (
     <div
-      className="relative"
+      className="relative flex items-center justify-center"
+      style={{ fontFamily: "var(--pi-font)", width: "28px", height: "40px" }}
       onMouseEnter={() => setShowTooltip(true)}
       onMouseLeave={() => { setShowTooltip(false); setIsDragOver(false); }}
       onDragOver={handleDragOver}
@@ -235,7 +278,7 @@ function FrictionTrayIcon() {
         style={{
           width: "22px",
           height: "22px",
-          backgroundColor: filled ? "var(--pi-ink-08)" : "transparent",
+          backgroundColor: filled ? "var(--pi-surface)" : "transparent",
           outline: isDragOver ? "1px solid var(--pi-ink)" : "none",
           transition: "background-color var(--pi-ease-hover)",
         }}
@@ -259,6 +302,7 @@ function FrictionTrayIcon() {
             backgroundColor: "var(--pi-surface)",
             border: "1px solid var(--pi-hairline)",
             color: "var(--pi-ink)",
+            fontFamily: "var(--pi-font)",
             fontSize: "0.7rem",
             fontWeight: 400,
           }}

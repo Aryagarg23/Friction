@@ -1,18 +1,21 @@
 /**
  * WINDOW COMPONENT
- * 
- * Draggable window frame for the fake apps: plain title bar, minimize,
- * maximize (fills the desktop area) and close. Double-click the title bar
- * to toggle maximize.
+ *
+ * Windows 11 style frame for the fake apps: Mica-like 32px title bar with app
+ * icon and title, caption buttons (minimize, maximize/restore, close) on the
+ * right. Maximize fills the desktop above the 48px taskbar. Double-click the
+ * title bar to toggle maximize. Colors come from the --w11-* tokens that
+ * DesktopOS defines on .w11-root.
  */
 
 import { useState, useRef, useEffect, type ReactNode } from "react";
-import { X, Minus, Maximize2, Minimize2 } from "lucide-react";
 import { useWindowManager } from "../../context/WindowManagerContext";
 
 interface WindowProps {
   windowId: string;
   title: string;
+  /** Emoji glyph shown left of the title, like a Windows app icon. */
+  icon?: string;
   children: ReactNode;
   width: number;
   height: number;
@@ -25,6 +28,7 @@ interface WindowProps {
 export function Window({
   windowId,
   title,
+  icon,
   children,
   width,
   height,
@@ -78,84 +82,112 @@ export function Window({
     toggleFullscreen(windowId);
   };
 
-  const controlIcon = { color: "var(--pi-ink-60)" };
-  const controlClass = "flex items-center justify-center h-full cursor-pointer";
+  const captionClass = "w11-cap flex items-center justify-center h-full cursor-default";
+  const captionStyle = { width: "46px" };
+  const dim = !isFocused;
 
   return (
     <div
       ref={windowRef}
-      className="absolute flex flex-col overflow-hidden"
+      className="w11-font absolute flex flex-col overflow-hidden"
       style={{
         left: isFullscreen ? 0 : position.x,
         top: isFullscreen ? 0 : position.y,
         width: isFullscreen ? "100%" : width,
         height: isFullscreen ? "calc(100% - 48px)" : height, // taskbar is 48px
         zIndex,
-        backgroundColor: "var(--pi-surface)",
-        border: isFullscreen
+        backgroundColor: "var(--w11-content)",
+        color: "var(--w11-text)",
+        borderRadius: isFullscreen ? 0 : "8px",
+        border: isFullscreen ? "none" : "1px solid var(--w11-frame)",
+        boxShadow: isFullscreen
           ? "none"
-          : `1px solid ${isFocused ? "var(--pi-ink-45)" : "var(--pi-hairline)"}`,
-        fontFamily: "var(--pi-font)",
+          : isFocused
+            ? "0 8px 32px rgba(0, 0, 0, 0.28)"
+            : "0 2px 12px rgba(0, 0, 0, 0.16)",
         transition: isDragging
           ? "none"
-          : "left var(--pi-ease-focus), top var(--pi-ease-focus), width var(--pi-ease-focus), height var(--pi-ease-focus), border-color var(--pi-ease-hover)",
+          : "left 250ms cubic-bezier(0.1, 0.9, 0.2, 1), top 250ms cubic-bezier(0.1, 0.9, 0.2, 1), width 250ms cubic-bezier(0.1, 0.9, 0.2, 1), height 250ms cubic-bezier(0.1, 0.9, 0.2, 1), box-shadow 150ms ease",
       }}
       onMouseDown={() => focusWindow(windowId)}
     >
       {/* Title bar */}
       <div
-        className="flex items-center justify-between px-3 select-none"
+        className="flex items-center justify-between select-none shrink-0"
         style={{
           height: "32px",
-          backgroundColor: "var(--pi-surface)",
-          borderBottom: "1px solid var(--pi-hairline)",
-          cursor: isFullscreen ? "default" : "move",
+          backgroundColor: "var(--w11-titlebar)",
+          cursor: "default",
         }}
         onMouseDown={handleMouseDown}
         onDoubleClick={handleTitleDoubleClick}
       >
-        <span
-          className="truncate"
-          style={{
-            color: isFocused ? "var(--pi-ink)" : "var(--pi-ink-45)",
-            fontWeight: 400,
-            fontSize: "0.72rem",
-          }}
-        >
-          {title}
-        </span>
+        <div className="flex items-center min-w-0 h-full" style={{ paddingLeft: "12px", gap: "10px" }}>
+          {icon && (
+            <span aria-hidden style={{ fontSize: "14px", lineHeight: 1, opacity: isFocused ? 1 : 0.6 }}>
+              {icon}
+            </span>
+          )}
+          <span
+            className="truncate"
+            style={{
+              color: isFocused ? "var(--w11-text)" : "var(--w11-text-off)",
+              fontWeight: 400,
+              fontSize: "12px",
+            }}
+          >
+            {title}
+          </span>
+        </div>
 
-        {/* Controls: minimize, maximize, close */}
-        <div className="window-controls flex items-center h-full -mr-3">
+        {/* Caption buttons: minimize, maximize/restore, close */}
+        <div
+          className="window-controls flex items-stretch h-full shrink-0">
           <button
             aria-label="Minimize"
             onClick={() => minimizeWindow(windowId)}
-            className={`${controlClass} hover:bg-[var(--pi-ink-08)]`}
-            style={{ width: "42px", transition: "background-color var(--pi-ease-hover)" }}
+            className={captionClass}
+            data-dim={dim}
+            style={captionStyle}
           >
-            <Minus size={13} style={controlIcon} />
+            <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden>
+              <path d="M0 5.5h10" stroke="currentColor" strokeWidth="1" />
+            </svg>
           </button>
           <button
             aria-label={isFullscreen ? "Restore" : "Maximize"}
             onClick={() => toggleFullscreen(windowId)}
-            className={`${controlClass} hover:bg-[var(--pi-ink-08)]`}
-            style={{ width: "42px", transition: "background-color var(--pi-ease-hover)" }}
+            className={captionClass}
+            data-dim={dim}
+            style={captionStyle}
           >
-            {isFullscreen ? <Minimize2 size={13} style={controlIcon} /> : <Maximize2 size={13} style={controlIcon} />}
+            {isFullscreen ? (
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden>
+                <rect x="0.5" y="2.5" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1" />
+                <path d="M2.5 2.5V1.5a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-1" stroke="currentColor" strokeWidth="1" />
+              </svg>
+            ) : (
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden>
+                <rect x="0.5" y="0.5" width="9" height="9" rx="1.2" stroke="currentColor" strokeWidth="1" />
+              </svg>
+            )}
           </button>
           <button
             aria-label="Close"
             onClick={() => closeWindow(windowId)}
-            className={`${controlClass} text-[color:var(--pi-ink-60)] hover:bg-[var(--pi-ink)] hover:text-[color:var(--pi-ground)]`}
-            style={{ width: "42px", transition: "background-color var(--pi-ease-hover), color var(--pi-ease-hover)" }}
+            className={`${captionClass} w11-cap-close`}
+            data-dim={dim}
+            style={captionStyle}
           >
-            <X size={13} />
+            <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden>
+              <path d="M0.5 0.5l9 9M9.5 0.5l-9 9" stroke="currentColor" strokeWidth="1" />
+            </svg>
           </button>
         </div>
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden" style={{ backgroundColor: "var(--w11-content)" }}>
         {children}
       </div>
     </div>

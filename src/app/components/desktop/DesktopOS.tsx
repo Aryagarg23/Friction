@@ -76,6 +76,10 @@ const DESKTOP_ICONS: DesktopIcon[] = [
   { id: "d-settings", name: "Settings", icon: "⚙️", appId: "settings", gridRow: 4, gridCol: 1 },
 ];
 
+const APP_ICONS: Record<string, string> = Object.fromEntries(
+  DESKTOP_ICONS.map(icon => [icon.appId, icon.icon]),
+);
+
 const APP_SIZES: Record<string, { width: number; height: number }> = {
   vscode: { width: 1000, height: 700 },
   chrome: { width: 1000, height: 700 },
@@ -89,6 +93,145 @@ const APP_SIZES: Record<string, { width: number; height: number }> = {
   calculator: { width: 480, height: 580 },
   settings: { width: 950, height: 650 },
 };
+
+/**
+ * WINDOWS 11 CHROME
+ *
+ * The fake laptop is meant to read as an ordinary Windows 11 machine, separate
+ * from Friction's cream/ink identity. These tokens and classes are scoped to
+ * .w11-root and used by the wallpaper, icons, Window and Dock (taskbar).
+ * Friction overlays rendered inside DesktopOS keep --pi-* and var(--pi-font).
+ * Dark mode mirrors identity.css: prefers-color-scheme unless data-theme forces one.
+ */
+const W11_DARK_TOKENS = `
+  --w11-wall-base: #06102a;
+  --w11-wall-glow: radial-gradient(ellipse 70% 60% at 58% 58%, rgba(40, 110, 255, 0.45) 0%, rgba(12, 40, 120, 0.25) 45%, rgba(6, 16, 42, 0) 75%), linear-gradient(160deg, #0a1736 0%, #050c22 100%);
+  --w11-petal-a: rgba(12, 60, 190, 0.85);
+  --w11-petal-b: rgba(70, 140, 255, 0.75);
+  --w11-petal-edge: rgba(140, 190, 255, 0.35);
+  --w11-taskbar: rgba(32, 32, 32, 0.85);
+  --w11-taskbar-border: rgba(255, 255, 255, 0.08);
+  --w11-text: #ffffff;
+  --w11-text-2: rgba(255, 255, 255, 0.72);
+  --w11-text-off: rgba(255, 255, 255, 0.45);
+  --w11-hover: rgba(255, 255, 255, 0.08);
+  --w11-press: rgba(255, 255, 255, 0.05);
+  --w11-active: rgba(255, 255, 255, 0.06);
+  --w11-search: rgba(255, 255, 255, 0.06);
+  --w11-search-border: rgba(255, 255, 255, 0.08);
+  --w11-pill-idle: rgba(255, 255, 255, 0.55);
+  --w11-titlebar: #202020;
+  --w11-content: #2b2b2b;
+  --w11-frame: rgba(255, 255, 255, 0.08);
+  --w11-cap-hover: rgba(255, 255, 255, 0.08);
+  --w11-cap-press: rgba(255, 255, 255, 0.04);
+  color-scheme: dark;
+`;
+
+const W11_CSS = `
+.w11-root {
+  --w11-font: "Segoe UI Variable", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --w11-blue: #0078d4;
+  --w11-wall-base: #c7d7f2;
+  --w11-wall-glow: radial-gradient(ellipse 70% 60% at 58% 58%, rgba(255, 255, 255, 0.55) 0%, rgba(214, 228, 252, 0.3) 45%, rgba(199, 215, 242, 0) 75%), linear-gradient(160deg, #e3ecfa 0%, #b6cbee 100%);
+  --w11-petal-a: rgba(10, 80, 220, 0.82);
+  --w11-petal-b: rgba(140, 185, 255, 0.7);
+  --w11-petal-edge: rgba(255, 255, 255, 0.45);
+  --w11-taskbar: rgba(243, 243, 243, 0.85);
+  --w11-taskbar-border: rgba(0, 0, 0, 0.08);
+  --w11-text: #1a1a1a;
+  --w11-text-2: rgba(0, 0, 0, 0.62);
+  --w11-text-off: rgba(0, 0, 0, 0.42);
+  --w11-hover: rgba(0, 0, 0, 0.05);
+  --w11-press: rgba(0, 0, 0, 0.03);
+  --w11-active: rgba(255, 255, 255, 0.7);
+  --w11-search: rgba(255, 255, 255, 0.9);
+  --w11-search-border: rgba(0, 0, 0, 0.06);
+  --w11-pill-idle: rgba(0, 0, 0, 0.42);
+  --w11-titlebar: #f3f3f3;
+  --w11-content: #ffffff;
+  --w11-frame: rgba(0, 0, 0, 0.12);
+  --w11-cap-hover: rgba(0, 0, 0, 0.06);
+  --w11-cap-press: rgba(0, 0, 0, 0.04);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .w11-root {${W11_DARK_TOKENS}}
+}
+:root[data-theme="dark"] .w11-root {${W11_DARK_TOKENS}}
+
+.w11-font { font-family: var(--w11-font); -webkit-font-smoothing: antialiased; }
+
+.w11-icon { border: 1px solid transparent; border-radius: 4px; }
+.w11-icon:hover { background-color: rgba(255, 255, 255, 0.1); }
+.w11-icon[data-selected="true"] { background-color: rgba(255, 255, 255, 0.18); border-color: rgba(255, 255, 255, 0.35); }
+
+.w11-tb-btn { border-radius: 4px; background-color: transparent; transition: background-color 83ms linear; }
+.w11-tb-btn:hover { background-color: var(--w11-hover); }
+.w11-tb-btn:active { background-color: var(--w11-press); }
+.w11-tb-btn[data-active="true"] { background-color: var(--w11-active); }
+.w11-tb-btn[data-active="true"]:hover { background-color: var(--w11-hover); }
+
+.w11-cap { color: var(--w11-text); background-color: transparent; transition: background-color 83ms linear, color 83ms linear; }
+.w11-cap:hover { background-color: var(--w11-cap-hover); }
+.w11-cap:active { background-color: var(--w11-cap-press); }
+.w11-cap[data-dim="true"] { color: var(--w11-text-off); }
+.w11-cap[data-dim="true"]:hover { color: var(--w11-text); }
+.w11-cap.w11-cap-close:hover { background-color: #c42b1c; color: #ffffff; }
+.w11-cap.w11-cap-close:active { background-color: #c83c31; color: rgba(255, 255, 255, 0.8); }
+`;
+
+/** Bloom petals: [rotation deg, width %, height %, layer opacity]. Back row first. */
+const BLOOM_PETALS: [number, number, number, number][] = [
+  [-95, 30, 58, 0.55],
+  [-52, 32, 64, 0.6],
+  [-12, 32, 66, 0.6],
+  [28, 32, 64, 0.6],
+  [70, 30, 58, 0.55],
+  [-72, 26, 52, 0.85],
+  [-30, 28, 58, 0.9],
+  [10, 28, 58, 0.9],
+  [50, 26, 52, 0.85],
+  [-10, 22, 44, 1],
+];
+
+function BloomWallpaper() {
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden>
+      <div className="absolute inset-0" style={{ backgroundColor: "var(--w11-wall-base)", backgroundImage: "var(--w11-wall-glow)" }} />
+      <div
+        className="absolute"
+        style={{
+          left: "58%",
+          top: "62%",
+          width: "min(95vh, 110%)",
+          aspectRatio: "1 / 1",
+          transform: "translate(-50%, -50%)",
+          filter: "blur(1.5px)",
+        }}
+      >
+        {BLOOM_PETALS.map(([rot, w, h, op], i) => (
+          <div
+            key={i}
+            className="absolute"
+            style={{
+              left: "50%",
+              top: "50%",
+              width: `${w}%`,
+              height: `${h}%`,
+              transformOrigin: "50% 100%",
+              transform: `translate(-50%, -100%) rotate(${rot}deg)`,
+              borderRadius: "50% 50% 50% 50% / 62% 62% 38% 38%",
+              backgroundImage: "linear-gradient(to top, var(--w11-petal-a) 0%, var(--w11-petal-b) 100%)",
+              boxShadow: "inset 0 0 36px var(--w11-petal-edge), 0 0 24px rgba(0, 40, 140, 0.18)",
+              opacity: op,
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function DesktopOS() {
   const { windows, focusedWindowId, openWindow, isAppOpen, focusAppWindow } = useWindowManager();
@@ -141,35 +284,36 @@ export function DesktopOS() {
 
   return (
     <div
-      className="relative w-full h-full overflow-hidden"
+      className="w11-root relative w-full h-full overflow-hidden"
       style={{
-        backgroundColor: "var(--pi-ground)",
+        backgroundColor: "var(--w11-wall-base)",
+        // Friction overlays rendered below inherit this; OS chrome sets .w11-font itself.
         fontFamily: "var(--pi-font)",
         filter: `brightness(${brightness})`,
         transition: "filter 1.5s ease",
       }}
       onClick={handleDesktopClick}
     >
-      {/* Wallpaper: flat ground with faint grain */}
-      <div className="absolute inset-0" style={{ backgroundColor: "var(--pi-ground)" }} />
-      <div style={GRAIN_OVERLAY_STYLE} />
+      <style>{W11_CSS}</style>
+
+      {/* Wallpaper: Windows 11 Bloom, CSS only */}
+      <BloomWallpaper />
 
       {/* Desktop Icons */}
-      <div className="absolute inset-0 p-4" style={{ paddingBottom: "56px" }}>
+      <div className="w11-font absolute inset-0 p-4" style={{ paddingBottom: "56px" }}>
         {DESKTOP_ICONS.map(icon => {
           const isSelected = selectedIcon === icon.id;
           return (
             <div
               key={icon.id}
-              className="absolute flex flex-col items-center justify-center cursor-pointer select-none"
+              className="w11-icon absolute flex flex-col items-center justify-start cursor-default select-none"
+              data-selected={isSelected}
               style={{
                 top: `${12 + icon.gridRow * 90}px`,
                 left: `${12 + icon.gridCol * 90}px`,
                 width: "76px",
                 height: "82px",
-                backgroundColor: isSelected ? "var(--pi-ink-08)" : "transparent",
-                border: isSelected ? "1px solid var(--pi-hairline)" : "1px solid transparent",
-                transition: "background-color var(--pi-ease-hover), border-color var(--pi-ease-hover)",
+                paddingTop: "6px",
               }}
               onClick={(e) => {
                 e.stopPropagation();
@@ -185,17 +329,20 @@ export function DesktopOS() {
                 style={{
                   width: "42px",
                   height: "42px",
-                  fontSize: "1.7rem",
+                  fontSize: "2rem",
+                  lineHeight: 1,
+                  filter: "drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3))",
                 }}
               >
                 {icon.icon}
               </div>
               <span
-                className="text-center mt-0.5 px-1"
+                className="text-center mt-1 px-1"
                 style={{
-                  fontSize: "0.65rem",
-                  color: "var(--pi-ink)",
-                  lineHeight: "1.2",
+                  fontSize: "12px",
+                  color: "#ffffff",
+                  textShadow: "0 1px 2px rgba(0, 0, 0, 0.75), 0 0 1px rgba(0, 0, 0, 0.6)",
+                  lineHeight: "16px",
                   maxWidth: "72px",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
@@ -239,12 +386,13 @@ export function DesktopOS() {
       <AnimatePresence>
         {windows.map(win => {
           const AppComponent = APP_COMPONENTS[win.appId];
-          if (!AppComponent) return null;
+          if (!AppComponent || win.isMinimized) return null;
           return (
             <Window
               key={win.id}
               windowId={win.id}
               title={win.title}
+              icon={APP_ICONS[win.appId]}
               position={win.position}
               width={win.size.width}
               height={win.size.height}

@@ -128,8 +128,10 @@ export function WindowManagerProvider({ children }: { children: ReactNode }) {
 
   const minimizeWindow = useCallback((windowId: string) => {
     setWindows(prev =>
-      prev.map(w => (w.id === windowId ? { ...w, isMinimized: !w.isMinimized } : w))
+      prev.map(w => (w.id === windowId ? { ...w, isMinimized: true } : w))
     );
+    // A minimized window cannot keep focus, or the taskbar would still mark it active.
+    setFocusedWindowId(prev => (prev === windowId ? null : prev));
   }, []);
 
   const toggleFullscreen = useCallback((windowId: string) => {
