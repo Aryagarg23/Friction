@@ -1,42 +1,10 @@
 /**
- * FRICTION OS-SIDE STYLE GUIDE
- * ============================================================
+ * FRICTION STYLE TOKENS
  *
- * This file defines the complete visual identity for Friction's
- * user-facing components inside the fake OS environment.
- *
- * DESIGN PHILOSOPHY:
- *   "Calm Authority" -- Friction should feel like a composed,
- *   intelligent presence. Not aggressive or panicky. Not playful.
- *   Think of a trusted advisor who speaks softly but carries weight.
- *   The visual language communicates depth, stillness, and warmth.
- *
- * COLOR INSPIRATION:
- *   Derived from the Breathing Visualizer (#6B5FFF electric violet,
- *   #FF5F8F hot rose, #A78FFF periwinkle) and Constellation Yoga
- *   (#0a0f1e deep navy, rgba(139,92,246) mid-violet, soft white borders).
- *   The palette shifts from the old steel-blue / desaturated-crimson
- *   to a vibrant violet–rose spectrum while keeping the deep navy base.
- *
- * KEY DISTINCTIONS FROM CONTROL PANEL:
- *   Control Panel (left side) = Brutalist Tactile
- *     - JetBrains Mono, amber/orange, matte black, Dune-inspired
- *     - Industrial, raw, exposed -- "wizard behind the curtain"
- *
- *   Friction OS App (right side) = Calm Authority
- *     - Space Grotesk headings, DM Sans body, violet-rose gradients
- *     - Grainy textures, deep navy, electric violet, glass morphism
- *     - Feels like a premium wellness/productivity app -- serene
- *
- * MOON POOL DENSITY STAGES:
- *   The pool is the emotional heart of the app. It responds
- *   physically and chromatically to cognitive load:
- *
- *   Stage 0 "Still"     (density 0.00-0.15) -- Deep indigo void
- *   Stage 1 "Shallow"   (density 0.15-0.35) -- Cool violet glow, gentle drift
- *   Stage 2 "Moderate"  (density 0.35-0.60) -- Bright violet, faster orbits
- *   Stage 3 "Dense"     (density 0.60-0.85) -- Rose-violet, viscous, heavy
- *   Stage 4 "Critical"  (density 0.85-1.00) -- Deep rose, near-solid, pulsing
+ * Thin JS handles onto the Presentation Identity CSS variables in
+ * src/styles/identity.css, so inline styles follow light/dark automatically.
+ * Values are var() strings: do not append hex alpha suffixes to them; use
+ * color-mix(in srgb, <token> N%, transparent) instead.
  */
 
 import type React from "react";
@@ -44,57 +12,56 @@ import type React from "react";
 // ── TYPOGRAPHY ──────────────────────────────────────────────
 
 export const FRICTION_FONTS = {
-  heading: "'Space Grotesk', sans-serif",
-  body: "'DM Sans', sans-serif",
-  mono: "'JetBrains Mono', monospace", // only for data readouts
+  heading: "var(--pi-font)",
+  body: "var(--pi-font)",
+  mono: "var(--pi-font)", // Space Grotesk only; pair with tabular-nums for digits
 } as const;
 
 // ── COLOR PALETTE ───────────────────────────────────────────
 
 export const FRICTION_COLORS = {
-  // Backgrounds
-  bgDeep: "#060a14",           // deepest layer (slightly warmer navy)
-  bgPrimary: "#0a0f1e",       // primary surface (yoga bg)
-  bgElevated: "#10152a",      // cards, panels (more indigo)
-  bgGlass: "rgba(10, 14, 30, 0.75)", // glassmorphism
+  // Surfaces
+  bgDeep: "var(--pi-ground)",
+  bgPrimary: "var(--pi-ground)",
+  bgElevated: "var(--pi-surface)",
+  bgGlass: "var(--pi-surface)",
 
-  // Blue/Violet spectrum (was steel blue, now electric violet)
-  blue100: "#e0d4f5",          // light lavender
-  blue200: "#b8a0f0",          // medium lavender
-  blue300: "#8B7FFF",          // periwinkle (hero mid-tone)
-  blue400: "#6B5FFF",          // electric violet (hero accent)
-  blue500: "#4A3FD4",          // deep violet
-  blueGlow: "rgba(107, 95, 255, 0.35)",
+  // Former violet scale -> ink and the technical blue
+  blue100: "var(--pi-ink)",
+  blue200: "var(--pi-ink)",
+  blue300: "var(--pi-blue)",
+  blue400: "var(--pi-blue)",
+  blue500: "var(--pi-blue)",
+  blueGlow: "transparent",
 
-  // Red / Rose spectrum (was desaturated crimson, now hot rose)
-  red100: "#f5d0e0",           // light rose
-  red200: "#f0a0b8",           // medium rose
-  red300: "#FF5F8F",           // hot rose (hero accent)
-  red400: "#D94A78",           // deep rose
-  red500: "#A83360",           // dark rose
-  redGlow: "rgba(255, 95, 143, 0.35)",
+  // Former rose scale -> the warning accent
+  red100: "var(--pi-hot)",
+  red200: "var(--pi-hot)",
+  red300: "var(--pi-hot)",
+  red400: "var(--pi-hot)",
+  red500: "var(--pi-hot)",
+  redGlow: "transparent",
 
-  // Violet (violet-rose bridge)
-  violet300: "#B06DFF",
-  violet400: "#9040E0",
-  violetGlow: "rgba(160, 80, 240, 0.3)",
+  violet300: "var(--pi-ink-60)",
+  violet400: "var(--pi-ink-60)",
+  violetGlow: "transparent",
 
   // Text
-  textPrimary: "#d4dbe8",      // main text
-  textSecondary: "#9a8ec0",    // labels, descriptions (lavender tint)
-  textMuted: "#5a5080",        // disabled, hints (violet-grey)
-  textAccent: "#8B7FFF",       // links, interactive (periwinkle)
+  textPrimary: "var(--pi-ink)",
+  textSecondary: "var(--pi-ink-60)",
+  textMuted: "var(--pi-ink-45)",
+  textAccent: "var(--pi-blue)",
 
-  // Borders (white-based like exercises)
-  borderSubtle: "rgba(255, 255, 255, 0.08)",
-  borderDefault: "rgba(255, 255, 255, 0.14)",
-  borderActive: "rgba(107, 95, 255, 0.3)",
-  borderDanger: "rgba(255, 95, 143, 0.25)",
+  // Borders
+  borderSubtle: "var(--pi-hairline)",
+  borderDefault: "var(--pi-hairline)",
+  borderActive: "var(--pi-ink)",
+  borderDanger: "var(--pi-hot)",
 
   // Functional
-  success: "#4ead7a",
-  warning: "#d4a054",
-  danger: "#FF5F8F",
+  success: "var(--pi-ink)",
+  warning: "var(--pi-hot)",
+  danger: "var(--pi-hot)",
 } as const;
 
 // ── MOON POOL DENSITY STAGES ────────────────────────────────
@@ -229,111 +196,94 @@ export function getPoolStage(density: number): PoolStage {
 }
 
 // ── GRAIN TEXTURE ───────────────────────────────────────────
-// Apply as a pseudo-element or overlay div with this background
 
 export const GRAIN_OVERLAY_STYLE: React.CSSProperties = {
   position: "absolute",
   inset: 0,
-  opacity: 0.55,
-  mixBlendMode: "overlay" as const,
+  opacity: "calc(var(--pi-grain-opacity) * 0.12)" as unknown as number,
   pointerEvents: "none" as const,
   backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='5' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
   backgroundSize: "200px 200px",
   zIndex: 0,
 };
 
-// ── GLASS PANEL ─────────────────────────────────────────────
+// ── PANEL ───────────────────────────────────────────────────
 
 export const GLASS_PANEL_STYLE: React.CSSProperties = {
-  backgroundColor: FRICTION_COLORS.bgGlass,
-  backdropFilter: "blur(24px) saturate(1.2)",
-  WebkitBackdropFilter: "blur(24px) saturate(1.2)",
+  backgroundColor: FRICTION_COLORS.bgElevated,
+  border: `1px solid ${FRICTION_COLORS.borderSubtle}`,
 };
 
 // ── SHARED COMPONENT STYLES ─────────────────────────────────
 
-/** Standard label text (section headers, tags) */
+/** Eyebrow label: uppercase, 0.65rem, 0.14em tracking, ink at 60% */
 export const labelStyle: React.CSSProperties = {
   fontFamily: FRICTION_FONTS.heading,
-  fontSize: "0.6rem",
+  fontSize: "0.65rem",
   fontWeight: 500,
-  letterSpacing: "0.12em",
+  letterSpacing: "0.14em",
   textTransform: "uppercase" as const,
   color: FRICTION_COLORS.textSecondary,
 };
 
-/** Body text */
 export const bodyStyle: React.CSSProperties = {
   fontFamily: FRICTION_FONTS.body,
-  fontSize: "0.75rem",
+  fontSize: "0.85rem",
   fontWeight: 400,
   lineHeight: 1.5,
   color: FRICTION_COLORS.textPrimary,
 };
 
-/** Data readout (numbers, timers) */
+/** Numbers that line up in columns */
 export const dataStyle: React.CSSProperties = {
   fontFamily: FRICTION_FONTS.mono,
-  fontSize: "0.6rem",
+  fontSize: "0.75rem",
   fontWeight: 400,
   fontVariantNumeric: "tabular-nums",
-  color: FRICTION_COLORS.textAccent,
+  color: FRICTION_COLORS.textPrimary,
 };
 
-/** Card / elevated surface */
 export const cardStyle: React.CSSProperties = {
   backgroundColor: FRICTION_COLORS.bgElevated,
   border: `1px solid ${FRICTION_COLORS.borderSubtle}`,
-  borderRadius: "8px",
+  borderRadius: 0,
 };
 
-/** Button — primary (violet) */
+/** Primary button: ink outline. Pair with className="pi-btn" for the hover invert. */
 export const btnPrimaryStyle: React.CSSProperties = {
   fontFamily: FRICTION_FONTS.heading,
-  fontSize: "0.65rem",
+  fontSize: "0.75rem",
   fontWeight: 500,
-  letterSpacing: "0.1em",
+  letterSpacing: "0.06em",
   textTransform: "uppercase" as const,
   color: FRICTION_COLORS.textPrimary,
-  backgroundColor: "rgba(107, 95, 255, 0.1)",
-  border: `1px solid rgba(107, 95, 255, 0.2)`,
-  borderRadius: "6px",
+  backgroundColor: "transparent",
+  border: `1px solid ${FRICTION_COLORS.textPrimary}`,
+  borderRadius: 0,
   cursor: "pointer",
-  padding: "8px 16px",
+  padding: "8px 14px",
 };
 
-/** Button — danger (rose) */
+/** Ending or stopping something: still ink, never the warning color. */
 export const btnDangerStyle: React.CSSProperties = {
-  fontFamily: FRICTION_FONTS.heading,
-  fontSize: "0.55rem",
-  fontWeight: 500,
-  letterSpacing: "0.08em",
-  textTransform: "uppercase" as const,
-  color: FRICTION_COLORS.danger,
-  backgroundColor: "rgba(255, 95, 143, 0.06)",
-  border: `1px solid ${FRICTION_COLORS.borderDanger}`,
-  borderRadius: "6px",
-  cursor: "pointer",
-  padding: "6px 12px",
+  ...btnPrimaryStyle,
+  fontSize: "0.65rem",
+  padding: "5px 10px",
 };
 
-/** Task item row */
 export const taskRowStyle: React.CSSProperties = {
   fontFamily: FRICTION_FONTS.body,
-  fontSize: "0.7rem",
+  fontSize: "0.8rem",
   color: FRICTION_COLORS.textPrimary,
-  backgroundColor: "rgba(107, 95, 255, 0.03)",
-  border: `1px solid ${FRICTION_COLORS.borderSubtle}`,
-  borderRadius: "6px",
-  padding: "8px 10px",
+  backgroundColor: "transparent",
+  borderBottom: `1px solid ${FRICTION_COLORS.borderSubtle}`,
+  borderRadius: 0,
+  padding: "8px 2px",
 };
 
-// ── GRADIENT HELPERS ────────────────────────────────────────
+// ── GRADIENTS ───────────────────────────────────────────────
+// The identity uses flat grounds. These return "none" so old call sites
+// render flat until they are removed.
 
-/** Violet → blue → rose diagonal gradient for backgrounds */
-export const blueRedGradient = (opacity: number = 0.15) =>
-  `linear-gradient(135deg, rgba(107, 95, 255, ${opacity}) 0%, rgba(90, 120, 220, ${opacity * 0.7}) 45%, rgba(255, 95, 143, ${opacity * 0.8}) 100%)`;
-
-/** Soft vignette for panels */
-export const vignetteGradient =
-  `radial-gradient(ellipse at center, transparent 50%, rgba(6, 10, 20, 0.4) 100%)`;
+export const blueRedGradient = (_opacity: number = 0.15) => "none";
+export const vignetteGradient = "none";

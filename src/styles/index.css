@@ -34,3 +34,4 @@
   from { opacity: 0; }
   to { opacity: 0.55; }
 }
+@import './identity.css';

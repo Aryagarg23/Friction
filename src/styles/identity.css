@@ -1,0 +1,115 @@
+/**
+ * PRESENTATION IDENTITY TOKENS
+ *
+ * Editorial-brutalist on warm paper. Light = paper, dark = stone.
+ * Every Friction surface (control panel, drawer, desktop chrome, overlays)
+ * reads these variables, so both themes come from one place.
+ *
+ * Rules the tokens assume: radius 0, 1px hairlines instead of shadows,
+ * muted text is ink at reduced opacity (never gray), blue = technical
+ * emphasis, hot = warning. Neither accent is a button color.
+ */
+
+:root {
+  --pi-ground: #eae4d6;
+  --pi-surface: #f2ede2;
+  --pi-sunken: #e0d9c8;
+  --pi-ink: #282215;
+  --pi-hairline: #c6b99f;
+  --pi-blue: #3b42db;
+  --pi-hot: #e85b30;
+  --pi-grain-opacity: 0.7;
+
+  --pi-ink-60: color-mix(in srgb, var(--pi-ink) 60%, transparent);
+  --pi-ink-45: color-mix(in srgb, var(--pi-ink) 45%, transparent);
+  --pi-ink-20: color-mix(in srgb, var(--pi-ink) 20%, transparent);
+  --pi-ink-08: color-mix(in srgb, var(--pi-ink) 8%, transparent);
+
+  --pi-font: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --pi-ease-hover: 150ms ease;
+  --pi-ease-focus: 340ms cubic-bezier(0.32, 0.72, 0, 1);
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --pi-ground: #1c1c1c;
+    --pi-surface: #232322;
+    --pi-sunken: #161616;
+    --pi-ink: #f1ede4;
+    --pi-hairline: #4a4640;
+    --pi-blue: #6f76ec;
+    --pi-hot: #d95526;
+    --pi-grain-opacity: 0.5;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --pi-ground: #1c1c1c;
+  --pi-surface: #232322;
+  --pi-sunken: #161616;
+  --pi-ink: #f1ede4;
+  --pi-hairline: #4a4640;
+  --pi-blue: #6f76ec;
+  --pi-hot: #d95526;
+  --pi-grain-opacity: 0.5;
+  color-scheme: dark;
+}
+
+body {
+  background: var(--pi-ground);
+  color: var(--pi-ink);
+  font-family: var(--pi-font);
+}
+
+/* Eyebrow / label register */
+.pi-label {
+  font-family: var(--pi-font);
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--pi-ink-60);
+}
+
+/* Buttons: ink on paper, inverted on hover. Never an accent color. */
+.pi-btn {
+  font-family: var(--pi-font);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--pi-ink);
+  border-radius: 0;
+  background: transparent;
+  color: var(--pi-ink);
+  cursor: pointer;
+  transition: background-color var(--pi-ease-hover), color var(--pi-ease-hover);
+}
+.pi-btn:hover,
+.pi-btn[aria-pressed="true"] {
+  background: var(--pi-ink);
+  color: var(--pi-ground);
+}
+.pi-btn:focus-visible {
+  outline: 2px solid var(--pi-blue);
+  outline-offset: 2px;
+}
+
+.pi-range {
+  accent-color: var(--pi-ink);
+  width: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
