@@ -83,9 +83,9 @@ const textBtn: CSSProperties = {
 export function ControlPanel() {
   const { current: biometrics, setCurrent, simulateGradualChange, setBiometrics } = useBiometrics();
   const { currentPersona, setPersona } = usePersona();
-  const { startSession, sessionState, triggerStrike, activateMoss, activeScreenNumber, forceScreen } = useSession();
+  const { startSession, sessionState, triggerStrike, activateMoss, activeScreenNumber, forceScreen, tasks: sessionTasks, completeTask } = useSession();
   const { interceptFatigue } = useFrictionSettings();
-  const { closeAllWindows } = useWindowManager();
+  const { closeAllWindows, windows, focusedWindowId } = useWindowManager();
   const [isExpanded, setIsExpanded] = useState(true);
   const [showSliders, setShowSliders] = useState(false);
   const [showTimeline, setShowTimeline] = useState(false);
@@ -106,10 +106,17 @@ export function ControlPanel() {
     isAutoPlaying,
   });
 
+  // Friction only reacts during a session. Moving a slider by hand means
+  // "show me what happens", so start one if none is running.
+  const ensureSession = () => {
+    if (sessionState !== "active") startSession();
+  };
   const handleFocusChange = (value: number) => {
+    ensureSession();
     setCurrent({ ...biometrics, focus_percent: value / 100 });
   };
   const handleFatigueChange = (value: number) => {
+    ensureSession();
     setCurrent({ ...biometrics, fatigue_percent: value / 100 });
   };
 
@@ -216,6 +223,7 @@ export function ControlPanel() {
 
   /** Context switch: "Stepped Away" */
   const handleStepAway = () => {
+    ensureSession();
     setSteppedAway(true);
     steppedAwayAtRef.current = Date.now();
     setIsAutoPlaying(false);
@@ -228,47 +236,39 @@ export function ControlPanel() {
     setBiometrics({ focus_percent: 0.03, fatigue_percent: biometrics.fatigue_percent + 0.05 });
   };
 
-  /** Return from context switch — branches on absence duration */
-  const LONG_ABSENCE_THRESHOLD_MS = 90_000; // 90 seconds
-
+  /**
+   * Return from stepping away: always show the moss, with words from what
+   * the user was actually doing (their current and next task, the app in
+   * front, and any words the story scripted for its own interruption).
+   */
   const handlePickBackUp = () => {
     setSteppedAway(false);
-    const absenceDuration = Date.now() - steppedAwayAtRef.current;
-    const isLongAbsence = absenceDuration >= LONG_ABSENCE_THRESHOLD_MS;
-
-    if (!isLongAbsence) {
-      // ── SHORT ABSENCE: residue (swipe-to-clear) pathway ──
-      // Activate residue overlay — suppresses RefocusPopup
-      if (currentPersona) {
-        const contextKeywords = [
-          "normalization weights",
-          "batch_variance_threshold",
-          "line 247",
-          "debugging loop",
-          "variable scope",
-          currentPersona.tasks[0]?.title || "",
-        ].filter(Boolean);
-        activateMoss(contextKeywords);
-      }
-      // Restore focus aggressively — short break, small switching cost
-      if (preAwayBiometrics) {
-        simulateGradualChange({
-          focus_percent: Math.max(preAwayBiometrics.focus * 0.80, 0.40),
-          fatigue_percent: Math.min(preAwayBiometrics.fatigue + 0.05, 1),
-        }, 2500);
-      }
-    } else {
-      // ── LONG ABSENCE: Refocus Exercise pathway ──
-      // Do NOT activate residue → focus stays < 0.30 → RefocusPopup shows naturally
-      // Gentle partial restore that keeps focus below the 0.30 threshold
-      if (preAwayBiometrics) {
-        simulateGradualChange({
-          focus_percent: 0.18, // stays below 0.30 so RefocusPopup remains
-          fatigue_percent: Math.min(preAwayBiometrics.fatigue + 0.12, 1),
-        }, 4000);
-      }
+    const scripted = currentPersona?.simulationActions.find(a => a.action === "moss")?.mossKeywords ?? [];
+    const focusedTitle = windows.find(w => w.id === focusedWindowId)?.title;
+    const contextKeywords = [
+      currentTasks.active,
+      currentTasks.upcoming,
+      focusedTitle ? `In ${focusedTitle}` : "",
+      ...scripted,
+    ].filter(k => k && k !== "—" && !k.startsWith("Nothing"));
+    activateMoss(Array.from(new Set(contextKeywords)).slice(0, 8));
+    // Focus comes back partway: a short break has a small switching cost.
+    if (preAwayBiometrics) {
+      simulateGradualChange({
+        focus_percent: Math.max(preAwayBiometrics.focus * 0.80, 0.40),
+        fatigue_percent: Math.min(preAwayBiometrics.fatigue + 0.05, 1),
+      }, 2500);
     }
     setPreAwayBiometrics(null);
+  };
+
+  /** Finish the task the user is on: mark it done and show the next one. */
+  const handleFinishTask = () => {
+    const current = sessionTasks.find(t => !t.completed);
+    if (!current) return;
+    ensureSession();
+    triggerStrike(currentTasks.active, currentTasks.upcoming);
+    completeTask(current.id);
   };
 
   /** Figure out which beat we're closest to */
@@ -286,23 +286,61 @@ export function ControlPanel() {
 
   /** Get current task based on timeline */
   const getCurrentTasks = (): { active: string; upcoming: string } => {
-    if (!currentPersona) return { active: "—", upcoming: "—" };
-    const elapsed = timelineMinutes;
-    let accum = 0;
-    let activeTask = currentPersona.tasks[0]?.title || "—";
-    let upcomingTask = "—";
-    for (let i = 0; i < currentPersona.tasks.length; i++) {
-      accum += currentPersona.tasks[i].estimatedMinutes;
-      if (elapsed < accum) {
-        activeTask = currentPersona.tasks[i].title;
-        upcomingTask = currentPersona.tasks[i + 1]?.title || "Nothing. Last task.";
-        break;
-      }
-    }
-    return { active: activeTask, upcoming: upcomingTask };
+    const open = sessionTasks.filter(t => !t.completed);
+    return {
+      active: open[0]?.title ?? "—",
+      upcoming: open[1]?.title ?? "Nothing. Last task.",
+    };
   };
 
   const currentTasks = getCurrentTasks();
+
+  // Step away / Come back and Finish task: used in a story and in Try it yourself.
+  const awayControls = (
+    <>
+      {steppedAway ? (
+        <p style={{ ...bodyText, margin: 0 }}>Away from the desk.</p>
+      ) : (
+        <>
+          <p style={{ ...bodyText, margin: 0 }} className="truncate">
+            <span style={{ color: "var(--pi-ink-60)" }}>Current task: </span>
+            {currentTasks.active}
+          </p>
+          <p style={{ ...mutedText, margin: "0.125rem 0 0" }} className="truncate">
+            Next: {currentTasks.upcoming}
+          </p>
+        </>
+      )}
+      <div className="flex flex-col" style={{ gap: "0.75rem", marginTop: "0.875rem" }}>
+        <div>
+          {steppedAway ? (
+            <button className="pi-btn w-full" style={smallBtn} onClick={handlePickBackUp}>
+              Come back
+            </button>
+          ) : (
+            <button className="pi-btn w-full" style={smallBtn} onClick={handleStepAway}>
+              Step away
+            </button>
+          )}
+          <p style={{ ...mutedText, margin: "0.375rem 0 0" }}>
+            Simulates walking away from the desk. Shows the moss when you come back.
+          </p>
+        </div>
+        {!steppedAway && (
+          <div>
+            <button
+              className="pi-btn w-full"
+              style={smallBtn}
+              onClick={handleFinishTask}
+            >
+              Finish task
+            </button>
+            <p style={{ ...mutedText, margin: "0.375rem 0 0" }}>Marks the current task done.</p>
+          </div>
+        )}
+      </div>
+    </>
+  );
 
   // What the Session screen is showing, derived from the sensor readings
   const getSessionView = (): string => {
@@ -486,47 +524,7 @@ export function ControlPanel() {
 
             {/* Interruptions the presenter can add */}
             <Section title="Try during the story">
-              {steppedAway ? (
-                <p style={{ ...bodyText, margin: 0 }}>Away from the desk.</p>
-              ) : (
-                <>
-                  <p style={{ ...bodyText, margin: 0 }} className="truncate">
-                    <span style={{ color: "var(--pi-ink-60)" }}>Current task: </span>
-                    {currentTasks.active}
-                  </p>
-                  <p style={{ ...mutedText, margin: "0.125rem 0 0" }} className="truncate">
-                    Next: {currentTasks.upcoming}
-                  </p>
-                </>
-              )}
-              <div className="flex flex-col" style={{ gap: "0.75rem", marginTop: "0.875rem" }}>
-                <div>
-                  {steppedAway ? (
-                    <button className="pi-btn w-full" style={smallBtn} onClick={handlePickBackUp}>
-                      Come back
-                    </button>
-                  ) : (
-                    <button className="pi-btn w-full" style={smallBtn} onClick={handleStepAway}>
-                      Step away
-                    </button>
-                  )}
-                  <p style={{ ...mutedText, margin: "0.375rem 0 0" }}>
-                    Simulates walking away from the desk. Shows the moss when you come back.
-                  </p>
-                </div>
-                {!steppedAway && (
-                  <div>
-                    <button
-                      className="pi-btn w-full"
-                      style={smallBtn}
-                      onClick={() => triggerStrike(currentTasks.active, currentTasks.upcoming)}
-                    >
-                      Finish task
-                    </button>
-                    <p style={{ ...mutedText, margin: "0.375rem 0 0" }}>Marks the current task done.</p>
-                  </div>
-                )}
-              </div>
+              {awayControls}
             </Section>
 
             {/* All steps */}
@@ -683,7 +681,7 @@ export function ControlPanel() {
                       <button
                         key={p.label}
                         className="pi-btn"
-                        onClick={() => setBiometrics({ focus_percent: p.focus, fatigue_percent: p.fatigue })}
+                        onClick={() => { ensureSession(); setBiometrics({ focus_percent: p.focus, fatigue_percent: p.fatigue }); }}
                       >
                         {p.label}
                       </button>
@@ -709,6 +707,9 @@ export function ControlPanel() {
                     ))}
                   </div>
                   <p style={{ ...mutedText, margin: "0.75rem 0 0" }}>{screenNote}</p>
+
+                  <p className="pi-label" style={{ margin: "1.25rem 0 0.5rem" }}>Interruptions</p>
+                  {awayControls}
                 </>
               )}
             </Section>
