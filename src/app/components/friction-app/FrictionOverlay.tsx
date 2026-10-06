@@ -75,14 +75,15 @@ function FrictionOverlayInner({ bioCtx }: { bioCtx: ReturnType<typeof useBiometr
     drawerScreen, setDrawerScreen, addTask, addGeneralTask,
     moveToPool, moveToGeneral, removeTask, removeGeneralTask,
     reorderTask, reorderGeneralTask,
+    sessionDurationMinutes: sessionDurationMin, setSessionDuration: setSessionDurationMin,
   } = useSession();
   const [isHovered, setIsHovered] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
-  const [sessionDurationMin, setSessionDurationMin] = useState(45);
   const [splitView, setSplitView] = useState(true);
   const [drawerRetracted, setDrawerRetracted] = useState(false);
   const leaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const drawerIdleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pointerInsideDrawerRef = useRef(false);
 
   const focus = biometrics.focus_percent;
   const fatigue = biometrics.fatigue_percent;
@@ -105,6 +106,8 @@ function FrictionOverlayInner({ bioCtx }: { bioCtx: ReturnType<typeof useBiometr
     if (drawerIdleRef.current) clearTimeout(drawerIdleRef.current);
     const timeout = drawerScreen === "mirror" ? 8000 : 2500;
     drawerIdleRef.current = setTimeout(() => {
+      // A resting pointer is not idle: the user is reading or about to click.
+      if (pointerInsideDrawerRef.current) return;
       setDrawerRetracted(true);
     }, timeout);
   }, [drawerScreen]);
@@ -186,8 +189,9 @@ function FrictionOverlayInner({ bioCtx }: { bioCtx: ReturnType<typeof useBiometr
             width: drawerRetracted ? retractedWidth : expandedDrawerWidth,
           }}
           transition={{ width: { duration: 0.5, ease: [0.16, 1, 0.3, 1] } }}
-          onMouseEnter={() => { if (drawerRetracted) resetDrawerIdle(); }}
-          onMouseMove={() => { if (!drawerRetracted) resetDrawerIdle(); }}
+          onMouseEnter={() => { pointerInsideDrawerRef.current = true; if (drawerRetracted) resetDrawerIdle(); }}
+          onMouseLeave={() => { pointerInsideDrawerRef.current = false; if (!drawerRetracted) resetDrawerIdle(); }}
+          onMouseMove={() => { pointerInsideDrawerRef.current = true; if (!drawerRetracted) resetDrawerIdle(); }}
           onClick={() => { if (!drawerRetracted) resetDrawerIdle(); }}
           onKeyDown={() => { if (!drawerRetracted) resetDrawerIdle(); }}
           onScrollCapture={() => { if (!drawerRetracted) resetDrawerIdle(); }}
@@ -322,7 +326,7 @@ function FrictionOverlayInner({ bioCtx }: { bioCtx: ReturnType<typeof useBiometr
                   setSessionDurationMin={setSessionDurationMin}
                   onImmerse={startSession}
                   isSessionActive={isActive}
-                  fullScreen
+                  fullScreen={!splitView}
                   onAddTask={addTask}
                   onAddGeneralTask={addGeneralTask}
                   onMoveToPool={moveToPool}

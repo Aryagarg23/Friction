@@ -264,9 +264,9 @@ export function DesktopOS() {
         <FocusIndicator focus={focus} />
       )}
 
-      {/* Refocus Popup — 3 exercise options when focus < 0.30 */}
+      {/* Refocus Popup — 3 exercise options when focus < 0.30; hidden under the hard intercept (fatigue > 0.95) */}
       <AnimatePresence>
-        {isActive && focus <= 0.30 && !mossActive && (
+        {isActive && focus <= 0.30 && fatigue <= 0.95 && !mossActive && (
           <RefocusPopup />
         )}
       </AnimatePresence>
