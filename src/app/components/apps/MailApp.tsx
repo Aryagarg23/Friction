@@ -6,6 +6,7 @@
  */
 
 import { useState } from "react";
+import { NO_AUTOFILL } from "@/app/lib/noAutofill";
 import {
   Mail, Star, Send, Inbox, Archive, Trash2, Tag, Paperclip,
   Reply, Forward, MoreHorizontal, Search, Pencil, ChevronDown,
@@ -408,7 +409,7 @@ export function MailApp() {
             style={{ backgroundColor: "#edf2fc" }}
           >
             <Search size={16} style={{ color: "#444746" }} />
-            <input
+            <input {...NO_AUTOFILL}
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -596,7 +597,7 @@ export function MailApp() {
           <div className="flex-1 flex flex-col p-3 gap-2">
             <div className="flex items-center gap-2 border-b pb-2" style={{ borderColor: "#e5e7eb" }}>
               <span className="text-sm" style={{ color: "#5f6368" }}>To</span>
-              <input
+              <input {...NO_AUTOFILL}
                 type="text"
                 value={composeTo}
                 onChange={(e) => setComposeTo(e.target.value)}
@@ -606,7 +607,7 @@ export function MailApp() {
             </div>
             <div className="flex items-center gap-2 border-b pb-2" style={{ borderColor: "#e5e7eb" }}>
               <span className="text-sm" style={{ color: "#5f6368" }}>Subject</span>
-              <input
+              <input {...NO_AUTOFILL}
                 type="text"
                 value={composeSubject}
                 onChange={(e) => setComposeSubject(e.target.value)}
@@ -614,7 +615,7 @@ export function MailApp() {
                 style={{ color: "#1f1f1f" }}
               />
             </div>
-            <textarea
+            <textarea {...NO_AUTOFILL}
               value={composeBody}
               onChange={(e) => setComposeBody(e.target.value)}
               className="flex-1 bg-transparent border-none outline-none text-sm resize-none"

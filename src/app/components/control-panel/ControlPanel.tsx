@@ -16,6 +16,7 @@ import { usePersonaSimulation } from "../../hooks/usePersonaSimulation";
 import { ALL_PERSONAS, type BiometricPattern } from "../../data/personas";
 import { FrictionKeyboard } from "./FrictionKeyboard";
 
+import { NO_AUTOFILL } from "@/app/lib/noAutofill";
 /** Interpolate biometrics between two pattern points */
 function interpolateBiometrics(
   pattern: BiometricPattern[],
@@ -762,7 +763,7 @@ function SliderRow({
           {Math.round(value * 100)}%
         </span>
       </div>
-      <input
+      <input {...NO_AUTOFILL}
         type="range"
         min="0"
         max="100"

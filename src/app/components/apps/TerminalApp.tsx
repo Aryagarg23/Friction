@@ -6,6 +6,7 @@
 
 import { useState, useRef, useEffect } from "react";
 
+import { NO_AUTOFILL } from "@/app/lib/noAutofill";
 interface HistoryEntry {
   command: string;
   output: string;
@@ -356,7 +357,7 @@ export function TerminalApp() {
           <span style={{ color: "#9ece6a" }}>friction</span>
           <span style={{ color: "#565f89" }}>{cwd.replace("~", "~")}</span>
           <span style={{ color: "#bb9af7" }}>❯</span>
-          <input
+          <input {...NO_AUTOFILL}
             ref={inputRef}
             type="text"
             value={input}

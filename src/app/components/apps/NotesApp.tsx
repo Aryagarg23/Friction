@@ -8,6 +8,7 @@
 import { useState } from "react";
 import { FileText, FolderOpen, Plus, Bold, Italic, List, Trash2, Search, Pin, GripVertical } from "lucide-react";
 
+import { NO_AUTOFILL } from "@/app/lib/noAutofill";
 interface Note {
   id: string;
   title: string;
@@ -399,7 +400,7 @@ export function NotesApp() {
         <div className="p-3 flex items-center gap-2 border-b" style={{ borderColor: "#e5e5e5" }}>
           <div className="flex-1 flex items-center gap-2 px-2 py-1.5 rounded" style={{ backgroundColor: "#f0f0f0" }}>
             <Search size={14} style={{ color: "#999" }} />
-            <input
+            <input {...NO_AUTOFILL}
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -468,7 +469,7 @@ export function NotesApp() {
 
         {/* Title */}
         <div className="px-6 pt-4">
-          <input
+          <input {...NO_AUTOFILL}
             type="text"
             value={selectedNote.title}
             onChange={(e) => updateNote("title", e.target.value)}
@@ -479,7 +480,7 @@ export function NotesApp() {
 
         {/* Content */}
         <div className="flex-1 px-6 py-3">
-          <textarea
+          <textarea {...NO_AUTOFILL}
             value={selectedNote.content}
             onChange={(e) => updateNote("content", e.target.value)}
             className="w-full h-full resize-none bg-transparent border-none outline-none text-sm"

@@ -8,6 +8,7 @@
 import { useState } from "react";
 import { Hash, Send, AtSign, Smile, Paperclip, ChevronDown, Circle, MessageSquare, Plus, Bell, Search, Users } from "lucide-react";
 
+import { NO_AUTOFILL } from "@/app/lib/noAutofill";
 interface Message {
   id: number;
   user: string;
@@ -638,7 +639,7 @@ export function SlackApp() {
                 <Plus size={18} style={{ color: "#616061" }} />
               </button>
             </div>
-            <input
+            <input {...NO_AUTOFILL}
               type="text"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
