@@ -23,6 +23,7 @@ import { DraggableOverlayTask, OverlayDropZone } from "./DraggableOverlayTask";
 import { ReflectionPage } from "./ReflectionPage";
 import { MoonPool } from "./MoonPool";
 
+import { NO_AUTOFILL } from "@/app/lib/noAutofill";
 const PANEL_EASE = [0.32, 0.72, 0, 1] as const;
 
 export function FrictionOverlay() {
@@ -412,7 +413,7 @@ function PlanScreen({
           <label htmlFor="friction-session-length" style={labelStyle}>Session length</label>
           <span style={dataStyle}>{formatMinutes(sessionDurationMin)}</span>
         </div>
-        <input
+        <input {...NO_AUTOFILL}
           id="friction-session-length"
           type="range" min={15} max={300} step={5}
           value={sessionDurationMin}
@@ -553,7 +554,7 @@ function TaskSection({
           className="flex items-center gap-2 mt-1"
           style={{ borderBottom: `1px solid ${FRICTION_COLORS.borderDefault}` }}
         >
-          <input
+          <input {...NO_AUTOFILL}
             type="text"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}

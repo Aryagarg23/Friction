@@ -8,6 +8,7 @@
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, Plus, X, Clock, MapPin } from "lucide-react";
 
+import { NO_AUTOFILL } from "@/app/lib/noAutofill";
 interface CalendarEvent {
   id: number;
   title: string;
@@ -398,7 +399,7 @@ export function CalendarApp() {
                 <X size={18} style={{ color: "#5f6368" }} />
               </button>
             </div>
-            <input
+            <input {...NO_AUTOFILL}
               className="w-full text-lg border-b pb-2 mb-3 outline-none"
               style={{ borderColor: "#4285f4", color: "#3c4043" }}
               placeholder="Add title"
@@ -410,7 +411,7 @@ export function CalendarApp() {
             </div>
             <div className="flex items-center gap-2 mb-4 text-sm" style={{ color: "#5f6368" }}>
               <MapPin size={16} />
-              <input
+              <input {...NO_AUTOFILL}
                 className="flex-1 bg-transparent border-none outline-none"
                 style={{ color: "#3c4043" }}
                 placeholder="Add location"

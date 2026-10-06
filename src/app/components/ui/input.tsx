@@ -2,9 +2,10 @@ import * as React from "react";
 
 import { cn } from "./utils";
 
+import { NO_AUTOFILL } from "@/app/lib/noAutofill";
 function Input({ className, type, ...props }: React.ComponentProps<"input">) {
   return (
-    <input
+    <input {...NO_AUTOFILL}
       type={type}
       data-slot="input"
       className={cn(

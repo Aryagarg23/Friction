@@ -9,6 +9,7 @@ import { useState } from "react";
 import { useFrictionSettings } from "../../context/FrictionSettingsContext";
 import { Wifi, Bluetooth, Monitor, Moon, Bell, Shield, Palette, Volume2, Keyboard, Mouse, Zap } from "lucide-react";
 
+import { NO_AUTOFILL } from "@/app/lib/noAutofill";
 interface SettingSection {
   id: string;
   name: string;
@@ -63,7 +64,7 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
 function Slider({ value, onChange, min = 0, max = 100 }: { value: number; onChange: (v: number) => void; min?: number; max?: number }) {
   return (
     <div className="flex items-center gap-3 w-full">
-      <input
+      <input {...NO_AUTOFILL}
         type="range"
         min={min}
         max={max}

@@ -10,6 +10,7 @@
  */
 
 import { useState, useMemo } from "react";
+import { NO_AUTOFILL } from "@/app/lib/noAutofill";
 import {
   FRICTION_FONTS, FRICTION_COLORS, labelStyle, bodyStyle, dataStyle,
 } from "./friction-styles";
@@ -217,7 +218,7 @@ function RecapScreen({
         <label htmlFor="friction-reflection" style={{ ...labelStyle, display: "block", marginBottom: 6 }}>
           What went well?
         </label>
-        <textarea
+        <textarea {...NO_AUTOFILL}
           id="friction-reflection"
           value={reflectionText}
           onChange={e => onReflectionChange(e.target.value)}

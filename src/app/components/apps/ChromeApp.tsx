@@ -10,6 +10,7 @@
  */
 
 import { useState } from "react";
+import { NO_AUTOFILL } from "@/app/lib/noAutofill";
 import {
   ArrowLeft, ArrowRight, RotateCw, Search, Star, Plus, X,
   Lock, ChevronDown, Bookmark,
@@ -560,7 +561,7 @@ export function ChromeApp() {
 
         <div className="flex-1 flex items-center gap-2 px-4 py-1.5 rounded-full" style={{ backgroundColor: "#f1f3f4" }}>
           <Lock size={14} style={{ color: "#5f6368" }} />
-          <input
+          <input {...NO_AUTOFILL}
             type="text"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
