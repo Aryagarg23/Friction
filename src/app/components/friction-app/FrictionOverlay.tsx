@@ -21,6 +21,7 @@ import {
 } from "./friction-styles";
 import { DraggableOverlayTask, OverlayDropZone } from "./DraggableOverlayTask";
 import { ReflectionPage } from "./ReflectionPage";
+import { MoonPool } from "./MoonPool";
 
 const PANEL_EASE = [0.32, 0.72, 0, 1] as const;
 
@@ -124,7 +125,8 @@ function FrictionOverlayInner() {
           backgroundColor: FRICTION_COLORS.bgPrimary,
           color: FRICTION_COLORS.textPrimary,
           fontFamily: FRICTION_FONTS.body,
-          borderLeft: `1px solid ${FRICTION_COLORS.borderDefault}`,
+          // A heavy ink edge marks where the laptop ends and the Friction app begins.
+          borderLeft: `2px solid ${FRICTION_COLORS.textPrimary}`,
           cursor: drawerRetracted ? "pointer" : "auto",
         }}
       >
@@ -145,6 +147,15 @@ function FrictionOverlayInner() {
             height: "100%",
           }}
         >
+          {/* Product name: says which part of the demo this is */}
+          <div
+            className="flex items-baseline gap-3 px-4 pt-3 pb-2 shrink-0"
+            style={{ backgroundColor: FRICTION_COLORS.textPrimary, color: FRICTION_COLORS.bgPrimary }}
+          >
+            <span style={{ fontSize: "1rem", fontWeight: 500, letterSpacing: "0.01em" }}>Friction</span>
+            <span style={{ fontSize: "0.7rem", opacity: 0.7 }}>The app being demoed</span>
+          </div>
+
           {/* Header: screen tabs and the split / full screen toggle */}
           <div
             className="flex items-center gap-2 px-4 py-2.5 shrink-0"
@@ -337,6 +348,14 @@ function PlanScreen({
 
   const sessionColumn = (
     <div className="space-y-6">
+      <MoonPool
+        tasks={activeTasks}
+        sessionDurationMin={sessionDurationMin}
+        size={fullScreen ? 200 : 150}
+        onMoveToPool={onMoveToPool}
+        onDropText={onAddTask ? (text) => onAddTask(makeDroppedTask(text, "task-drop")) : undefined}
+      />
+
       {/* How heavy is this session */}
       <div>
         <p style={{ ...bodyStyle, margin: 0 }}>

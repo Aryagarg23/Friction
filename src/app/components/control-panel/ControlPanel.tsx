@@ -340,21 +340,25 @@ export function ControlPanel() {
       className="h-screen flex flex-col shrink-0"
       style={{
         width: "380px",
-        backgroundColor: "var(--pi-ground)",
+        // Recessed and dashed-edged: backstage, not part of the product.
+        backgroundColor: "var(--pi-sunken)",
         color: "var(--pi-ink)",
         fontFamily: "var(--pi-font)",
-        borderRight: "1px solid var(--pi-hairline)",
+        borderRight: "2px dashed var(--pi-hairline)",
         transition: "width var(--pi-ease-focus)",
       }}
     >
       {/* Header */}
-      <header className="shrink-0 flex items-start justify-between gap-4" style={{ padding: "1.5rem 1.25rem 1.25rem" }}>
+      <header
+        className="shrink-0 flex items-start justify-between gap-4"
+        style={{ padding: "1.25rem", borderBottom: "1px dashed var(--pi-hairline)" }}
+      >
         <div>
           <h2 style={{ margin: 0, fontSize: "1rem", fontWeight: 500, letterSpacing: "0.01em" }}>
             Demo controls
           </h2>
           <p style={{ ...mutedText, margin: "0.375rem 0 0" }}>
-            Simulated sensor readings. The user never sees this panel.
+            For the presenter. Not part of Friction. These sliders stand in for the sensors.
           </p>
         </div>
         <button className="pi-btn shrink-0" style={smallBtn} onClick={() => setIsExpanded(false)}>
