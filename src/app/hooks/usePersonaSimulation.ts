@@ -94,6 +94,10 @@ export function usePersonaSimulation({
       lastProcessedTime.current = -1;
       // Close existing windows to start fresh
       wmRef.current.closeAllWindows();
+      // Load the story's own tasks and length, so the desktop and the Friction
+      // panel show the same work the story is talking about.
+      sessionRef.current.setTasks(persona.tasks.map(t => ({ ...t, completed: false })));
+      sessionRef.current.setSessionDuration(persona.sessionDurationMinutes);
     }
   }, [persona?.id]);
 
@@ -181,7 +185,31 @@ export function usePersonaSimulation({
       if (snapshot) {
         reconcile(snapshot);
       }
+      // Moss is state, not just an event: jumping onto a moss step must show it,
+      // and jumping past or before it must clear it.
+      const lastMossAction = persona.simulationActions
+        .filter(a => (a.action === "moss" || a.action === "clear-moss") && a.time <= timelineMinutes)
+        .pop();
+      const { mossActive } = sessionRef.current;
+      if (lastMossAction?.action === "moss" && lastMossAction.mossKeywords) {
+        if (!mossActive) activateMoss(lastMossAction.mossKeywords);
+      } else if (mossActive) {
+        clearMoss();
+      }
     }
+
+    // Tasks finished by this point in the story, whichever way the timeline moved.
+    const finished = new Set(
+      persona.simulationActions
+        .filter(a => a.action === "strike" && a.time <= timelineMinutes && a.strikeTask)
+        .map(a => a.strikeTask as string)
+    );
+    const tasksNow = persona.tasks.map(t => ({ ...t, completed: finished.has(t.title) }));
+    const current = sessionRef.current.tasks;
+    const changed =
+      current.length !== tasksNow.length ||
+      current.some((t, i) => t.id !== tasksNow[i].id || t.completed !== tasksNow[i].completed);
+    if (changed) sessionRef.current.setTasks(tasksNow);
 
     lastProcessedTime.current = timelineMinutes;
   }, [timelineMinutes, isActive, isAutoPlaying, persona]);

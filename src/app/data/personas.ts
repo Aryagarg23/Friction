@@ -61,6 +61,8 @@ export interface PersonaProfile {
   description: string;
   challenge: string;
   intervention: string;
+  /** One line for the story picker: which Friction feature this story shows. */
+  shows: string;
   
   // Pre-populated session data
   tasks: Task[];
@@ -73,7 +75,12 @@ export interface PersonaProfile {
   storyBeats: {
     phase: string;
     time: number;          // Minutes into session
+    /** What is happening to the person, in plain words. */
     narration: string;
+    /** What Friction does at this moment. */
+    friction: string;
+    /** Where on screen to look to see it. */
+    lookAt: string;
     subState: "invisible" | "taper" | "recovery" | "return" | "intercept" | "idle";
   }[];
   
@@ -100,9 +107,10 @@ export const CLAUDIA_PERSONA: PersonaProfile = {
   id: "claudia",
   name: "Claudia",
   archetype: "The Freelancer",
-  description: "Documentary editor juggling multiple creative projects with tight deadlines.",
-  challenge: "Context-switching and the jarring 'wired-to-unplugged' dissociation of creative burnout.",
-  intervention: "The Taper — Gentle physical and visual cues ease her out of deep flow before catastrophic fatigue.",
+  description: "A video editor on a four-hour editing day.",
+  challenge: "She works until she crashes, then feels empty for the rest of the day.",
+  intervention: "The taper: Friction eases her out of deep focus before she is worn out.",
+  shows: "Getting tired. Friction slows you down gently.",
   
   tasks: [
     { id: "c1", title: "Splice documentary timeline (Act II climax)", cognitiveWeight: 0.92, completed: false, category: "deep", estimatedMinutes: 120 },
@@ -128,27 +136,35 @@ export const CLAUDIA_PERSONA: PersonaProfile = {
   
   storyBeats: [
     {
-      phase: "Deep Flow",
+      phase: "Deep focus",
       time: 0,
-      narration: "Claudia is deep in the zone. The timeline scrubbing feels effortless. Her hands and eyes move in perfect sync.",
+      narration: "Claudia starts editing. She is focused and the work feels easy.",
+      friction: "Nothing. It stays out of the way. There is no timer and no reminder.",
+      lookAt: "The top of the laptop screen: only a thin line shows the current task.",
       subState: "invisible"
     },
     {
-      phase: "Sustained Focus",
+      phase: "Still focused",
       time: 90,
-      narration: "Two hours in. Focus remains high, but fatigue is starting to accumulate. The system watches silently.",
+      narration: "Two hours in. She is still focused, but she is starting to get tired.",
+      friction: "Still nothing on screen. It notices the tiredness and waits.",
+      lookAt: "Fatigue in this panel is going up.",
       subState: "invisible"
     },
     {
-      phase: "The Taper Begins",
+      phase: "Getting tired",
       time: 180,
-      narration: "Hour three. Fatigue hits 0.75. The keyboard switches feel slightly 'spongier.' The RGB shifts to warm amber. Low-cognitive tasks surface.",
+      narration: "Hour three. She is tired now, but she does not feel it yet.",
+      friction: "The keys get softer, and the next tasks are the easy ones.",
+      lookAt: "The keyboard below: the keys now read Soft.",
       subState: "taper"
     },
     {
-      phase: "Soft Landing",
+      phase: "A soft stop",
       time: 240,
-      narration: "Four hours complete. The system has gradually pulled her out of flow, preventing the brutal crash. She's tired but not wrecked.",
+      narration: "Four hours done. She ends on easy tasks. She is tired, but not worn out.",
+      friction: "It eased her out slowly instead of letting her work until she crashed.",
+      lookAt: "The task list: the hard work was done while she was fresh.",
       subState: "taper"
     },
   ],
@@ -219,9 +235,10 @@ export const PERPLEXOUS_PERSONA: PersonaProfile = {
   id: "perplexous",
   name: "Perplexous",
   archetype: "The PhD Student",
-  description: "Computational biology researcher debugging multi-omics data pipelines.",
-  challenge: "Holding massive, fragile mental models. Interruptions destroy hours of cognitive loading.",
-  intervention: "Flow State Preservation — AI-synthesized context overlay ('digital moss') rebuilds mental models instantly.",
+  description: "A PhD student fixing a bug in a large data pipeline.",
+  challenge: "He holds a lot of code in his head. One interruption and it is gone.",
+  intervention: "The moss: after an interruption, Friction shows him where he left off.",
+  shows: "Interruptions. Friction helps you pick up where you left off.",
   
   tasks: [
     { id: "p1", title: "Debug normalization weights in pipeline", cognitiveWeight: 0.98, completed: false, category: "deep", estimatedMinutes: 120 },
@@ -246,27 +263,35 @@ export const PERPLEXOUS_PERSONA: PersonaProfile = {
   
   storyBeats: [
     {
-      phase: "Peak Flow",
+      phase: "Deep focus",
       time: 0,
-      narration: "Perplexous is in the zone. His mental model spans 6 files and 400 lines of code. It's all held in working memory.",
+      narration: "Perplexous is fixing a bug. He is keeping six files of code in his head.",
+      friction: "Nothing. It stays out of the way.",
+      lookAt: "The top of the laptop screen: only a thin line shows the current task.",
       subState: "invisible"
     },
     {
-      phase: "The Interruption",
+      phase: "Interrupted",
       time: 75,
-      narration: "A lab mate bursts in with a question. Focus plummets to 0.05. The mental scaffolding collapses.",
+      narration: "A lab mate stops by with a question. He loses his train of thought.",
+      friction: "It sees his focus drop and keeps a note of what he was working on.",
+      lookAt: "Focus in this panel drops to almost zero.",
       subState: "return"
     },
     {
-      phase: "The Moss Appears",
+      phase: "Coming back",
       time: 78,
-      narration: "He returns to his screen. Organic 'digital moss' creeps across his editor. Etched within: 'You were adjusting normalization weights. Last variable: batch_variance_threshold.'",
+      narration: "He comes back to his desk and does not remember where he was.",
+      friction: "It covers the screen with 'moss' that shows the words he was working with, so he can find his place.",
+      lookAt: "The laptop screen. Sweep the mouse across the moss to clear it.",
       subState: "return"
     },
     {
-      phase: "Instant Recovery",
+      phase: "Back on track",
       time: 80,
-      narration: "He swipes the moss away. The words snap back to their positions in the code. The mental model rebuilds in seconds, not minutes.",
+      narration: "He clears the moss and is back at work in seconds, not minutes.",
+      friction: "It steps back out of the way.",
+      lookAt: "The laptop screen: the moss is gone.",
       subState: "invisible"
     },
   ],
@@ -344,9 +369,10 @@ export const CHARLIE_PERSONA: PersonaProfile = {
   id: "charlie",
   name: "Charlie",
   archetype: "The Solo Lawyer",
-  description: "Solo practitioner burning the midnight oil on antitrust discovery documents.",
-  challenge: "Late-night grind, ignoring bodily limits. Loses self-awareness of fatigue and makes critical errors.",
-  intervention: "The Hard Intercept — Physical resistance and progressive vignette force a shutdown before catastrophic failure.",
+  description: "A lawyer working late on a big case.",
+  challenge: "He ignores how tired he is and starts making mistakes.",
+  intervention: "The lock: when he is too tired, Friction makes him stop.",
+  shows: "Working too late. Friction locks the screen when you are too tired.",
   
   tasks: [
     { id: "ch1", title: "Cross-reference antitrust discovery docs (§201-450)", cognitiveWeight: 0.88, completed: false, category: "deep", estimatedMinutes: 180 },
@@ -369,27 +395,35 @@ export const CHARLIE_PERSONA: PersonaProfile = {
   
   storyBeats: [
     {
-      phase: "Late Night Start",
+      phase: "Starting late",
       time: 0,
-      narration: "It's 10:45 PM. Charlie is already tired but pushes on. The case deadline looms. He tells himself 'just two more hours.'",
+      narration: "It is 10:45 PM. Charlie is already tired, but a deadline is close. He tells himself two more hours.",
+      friction: "It lets him work, and keeps an eye on how tired he is.",
+      lookAt: "Fatigue in this panel: it starts high.",
       subState: "invisible"
     },
     {
-      phase: "Grinding Through",
+      phase: "Pushing through",
       time: 120,
-      narration: "Two hours in. Fatigue is climbing but Charlie doesn't notice. His subjective sense of tiredness has plateaued even as his performance degrades.",
+      narration: "Two hours in. He feels no more tired than before, but his work is getting worse.",
+      friction: "The keys get softer and the edges of the screen start to darken.",
+      lookAt: "The keyboard below reads Soft. The edges of the laptop screen are darker.",
       subState: "taper"
     },
     {
-      phase: "Critical Zone",
+      phase: "Making mistakes",
       time: 240,
-      narration: "Four hours. Fatigue hits 0.92. The system initiates The Taper but Charlie fights through it. He's making errors but doesn't realize it.",
+      narration: "Four hours in. He ignores the warnings and keeps going. He is making mistakes and does not notice.",
+      friction: "It keeps adding resistance. The keys are now heavy.",
+      lookAt: "The keyboard below: the keys now read Heavy.",
       subState: "taper"
     },
     {
-      phase: "The Hard Intercept",
+      phase: "Locked",
       time: 270,
-      narration: "Fatigue exceeds 0.95. The system stops asking. Keys become impossibly heavy. A dark vignette shrinks his screen to a pinpoint. 'Cognitive capacity depleted. Physical reset required.'",
+      narration: "He is too tired to work well, but he would keep going.",
+      friction: "It stops asking. The keys lock, the screen goes dark at the edges, and a message tells him to take a break.",
+      lookAt: "The laptop screen: the break message. The keyboard below reads Locked.",
       subState: "intercept"
     },
   ],
